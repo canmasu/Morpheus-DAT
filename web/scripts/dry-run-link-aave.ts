@@ -54,8 +54,8 @@ async function main() {
   await rpc('anvil_setCode', [consumer, stub.deployedBytecode.object]);
   for (const [id, price] of prices) await send(consumer, cons as Abi, 'setPrice', [id, price]);
 
-  // Fresh PoolVault implementation + factory from the current build (what "redo from here" on PoolVault does).
-  {
+  // FRESH_FACTORY=1: fresh PoolVault implementation + factory from the current build.
+  if (process.env.FRESH_FACTORY) {
     const dep = async (art: { abi: Abi; bytecode: `0x${string}` }, args: unknown[]) =>
       (await l1.waitForTransactionReceipt({ hash: await w1.deployContract({ abi: art.abi, bytecode: art.bytecode, args } as never) })).contractAddress!;
     const old = { address: factory, abi: A.PoolFactory.abi } as const;

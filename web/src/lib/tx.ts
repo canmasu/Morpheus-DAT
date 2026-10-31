@@ -1,6 +1,7 @@
 import { getAccount, getPublicClient, switchChain } from 'wagmi/actions';
 import { createWalletClient, custom, type Abi, type Address, type Chain, type EIP1193Provider, type Hash, type PublicClient, type TransactionReceipt } from 'viem';
 import { wagmiConfig } from '@/config/wagmi';
+import { trackTx } from './txEvents';
 
 export const publicClient = (chain: Chain) => getPublicClient(wagmiConfig, { chainId: chain.id as never }) as PublicClient;
 
@@ -39,12 +40,16 @@ export async function deploy(
   account: Address,
   artifact: { abi: Abi; bytecode: `0x${string}` },
   args: unknown[],
+  label?: string,
 ): Promise<{ address: Address; hash: Hash }> {
   const wallet = await walletOn(chain, account);
   const hash = await wallet.deployContract({ abi: artifact.abi, bytecode: artifact.bytecode, args, ...(await fees(chain)) } as never);
+  const settle = trackTx(hash, chain, label ?? 'Deploy contract');
   const receipt = await publicClient(chain).waitForTransactionReceipt({ hash });
-  if (receipt.status !== 'success' || !receipt.contractAddress) throw new Error(`Deployment reverted (${hash})`);
-  return { address: receipt.contractAddress, hash };
+  const ok = receipt.status === 'success' && !!receipt.contractAddress;
+  settle(ok ? 'success' : 'failed');
+  if (!ok) throw new Error(`Deployment reverted (${hash})`);
+  return { address: receipt.contractAddress!, hash };
 }
 
 /** Simulates first so a revert shows its reason before the wallet asks for a signature. */
@@ -63,10 +68,31 @@ export async function write(
   // 30% headroom: estimates run short when Morpheus makes inner calls with a fixed gas budget (seen on Sepolia).
   const gas = ((await client.estimateContractGas({ account, address, abi, functionName, args, value } as never)) * 13n) / 10n;
   const hash = await wallet.writeContract({ ...(request as object), gas, ...(await fees(chain)) } as never);
+  const settle = trackTx(hash, chain, LABELS[functionName] ?? functionName);
   const receipt = await client.waitForTransactionReceipt({ hash });
+  settle(receipt.status === 'success' ? 'success' : 'failed');
   if (receipt.status !== 'success') throw new Error(`Transaction reverted (${hash})`);
   return { hash, receipt };
 }
+
+/** Plain-language names for the contract calls the site sends. */
+const LABELS: Record<string, string> = {
+  approve: 'Approve',
+  stake: 'Stake',
+  claimReward: 'Claim reward',
+  withdraw: 'Withdraw',
+  processExit: 'Retry exit',
+  exitEarly: 'Exit early',
+  createPool: 'Create pool',
+  deploySplitter: 'Deploy MOR splitter',
+  claimMor: 'Claim MOR',
+  distribute: 'Distribute MOR',
+  setFeatured: 'Change featured flag',
+  grantRole: 'Grant role',
+  renounceRole: 'Renounce role',
+  transferOwnership: 'Offer ownership',
+  mint: 'Mint test tokens',
+};
 
 export function errorText(e: unknown) {
   const err = e as { shortMessage?: string; message?: string };

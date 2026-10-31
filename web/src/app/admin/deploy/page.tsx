@@ -93,7 +93,7 @@ function Deploy() {
   const done = !nextStep;
 
   const ctxFor = useCallback(
-    (s: DeployState): Ctx => {
+    (s: DeployState, label?: string): Ctx => {
       const chainOf = (layer: Layer) => (layer === 'l1' ? net.l1 : net.l2);
       const account = address as Address;
       return {
@@ -101,7 +101,7 @@ function Deploy() {
         deployer: account,
         params: s.params,
         results: s.results,
-        deploy: (layer, artifact, args) => deploy(chainOf(layer), account, artifact, args),
+        deploy: (layer, artifact, args) => deploy(chainOf(layer), account, artifact, args, label && `Deploy ${label}`),
         write: async (layer, target, abi, functionName, args) => ({
           hash: (await write(chainOf(layer), account, target, abi, functionName, args)).hash,
         }),
@@ -111,7 +111,7 @@ function Deploy() {
   );
 
   const runStep = async (step: Step, s: DeployState) => {
-    const ctx = ctxFor(s);
+    const ctx = ctxFor(s, step.title);
     if (step.skip?.(ctx)) return persist({ ...s, results: { ...s.results, [step.id]: { skipped: true } } });
     setRunning(step.id);
     const result = await step.run(ctx);
