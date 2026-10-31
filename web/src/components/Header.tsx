@@ -10,6 +10,7 @@ import { isAdmin } from '@/config/admin';
 
 const NAV = [
   { href: '/', label: 'Home' },
+  { href: '/partner/', label: 'Partners' },
   { href: '/contracts/', label: 'Contracts' },
 ];
 

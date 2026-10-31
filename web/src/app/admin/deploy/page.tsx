@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { getAccount, getPublicClient, switchChain } from 'wagmi/actions';
-import { createWalletClient, custom, type Abi, type Address, type EIP1193Provider } from 'viem';
-import { wagmiConfig } from '@/config/wagmi';
+import type { Address } from 'viem';
+import { deploy, errorText, write } from '@/lib/tx';
 import { NETWORKS, explorerAddress, explorerTx, type NetworkName } from '@/config/networks';
 import { useNetwork } from '@/components/Providers';
 import { AdminGate } from '@/components/AdminGate';
@@ -41,6 +40,7 @@ function Deploy() {
   const [error, setError] = useState<string>();
   const [mainnetAck, setMainnetAck] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmRedo, setConfirmRedo] = useState<string>();
 
   useEffect(() => {
     setState(load<DeployState>(storageKey(net.name)) ?? { network: net.name, params: DEFAULT_PARAMS(address), results: {} });
@@ -61,69 +61,43 @@ function Deploy() {
   const started = Object.keys(state.results).length > 0;
   const deployerMismatch = !!state.deployer && !!address && state.deployer.toLowerCase() !== address.toLowerCase();
   const paramErrors = validateParams(state.params);
-  const blocked = !address || deployerMismatch || paramErrors.length > 0 || (net.name === 'mainnet' && !mainnetAck);
+  const blockReason = !address
+    ? 'Connect the admin wallet.'
+    : deployerMismatch
+      ? `Connect ${short(state.deployer)}, the wallet that started this deployment.`
+      : paramErrors.length > 0
+        ? 'Fix the configuration above first.'
+        : net.name === 'mainnet' && !mainnetAck
+          ? 'Tick the mainnet confirmation above.'
+          : undefined;
+  const blocked = !!blockReason;
 
   const nextStep = STEPS.find((s) => !state.results[s.id]);
+
+  /** Forgets this step and every later one, so they run again (e.g. after a contract fix). Earlier
+   * contracts are kept and reused. */
+  const redoFrom = (id: string) => {
+    if (confirmRedo !== id) return setConfirmRedo(id);
+    const from = STEPS.findIndex((s) => s.id === id);
+    const keep = Object.fromEntries(STEPS.slice(0, from).filter((s) => state.results[s.id]).map((s) => [s.id, state.results[s.id]]));
+    persist({ ...state, results: keep });
+    setConfirmRedo(undefined);
+  };
   const done = !nextStep;
 
   const ctxFor = useCallback(
     (s: DeployState): Ctx => {
-      // Talks to the wallet's provider directly: wagmi's cached chain id can lag behind a chain switch.
-      const ensure = async (layer: Layer) => {
-        const chain = layer === 'l1' ? net.l1 : net.l2;
-        const { connector } = getAccount(wagmiConfig);
-        if (!connector) throw new Error('Wallet not connected');
-        const provider = (await connector.getProvider()) as EIP1193Provider;
-        const current = async () => Number(await provider.request({ method: 'eth_chainId' }));
-        if ((await current()) !== chain.id) {
-          await switchChain(wagmiConfig, { chainId: chain.id as never });
-          for (let i = 0; i < 40 && (await current()) !== chain.id; i++) await new Promise((r) => setTimeout(r, 250));
-          if ((await current()) !== chain.id) throw new Error(`Please switch your wallet to ${chain.name} and retry`);
-        }
-        return {
-          chainId: chain.id,
-          wallet: createWalletClient({ account: address as Address, chain, transport: custom(provider) }),
-        };
-      };
-      // Some RPCs (e.g. Arbitrum Sepolia) suggest a gas price below the base fee, so fees are set
-      // from the latest base fee instead. Only the actual base fee + tip is charged.
-      const fees = async (client: ReturnType<typeof getPublicClient>) => {
-        const block = await client.getBlock();
-        const base = block.baseFeePerGas ?? 0n;
-        let tip = 0n;
-        try {
-          tip = await client.estimateMaxPriorityFeePerGas();
-        } catch {
-          // chains without priority fees
-        }
-        return { maxFeePerGas: base * 2n + tip, maxPriorityFeePerGas: tip };
-      };
+      const chainOf = (layer: Layer) => (layer === 'l1' ? net.l1 : net.l2);
+      const account = address as Address;
       return {
         net,
-        deployer: address as Address,
+        deployer: account,
         params: s.params,
         results: s.results,
-        deploy: async (layer, artifact, args) => {
-          const { chainId, wallet } = await ensure(layer);
-          const client = getPublicClient(wagmiConfig, { chainId: chainId as never });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const hash = await wallet.deployContract({ abi: artifact.abi, bytecode: artifact.bytecode, args, ...(await fees(client)) } as any);
-          const receipt = await client.waitForTransactionReceipt({ hash });
-          if (receipt.status !== 'success' || !receipt.contractAddress) throw new Error(`Deployment reverted (${hash})`);
-          return { address: receipt.contractAddress, hash };
-        },
-        write: async (layer, target, abi: Abi, functionName, args) => {
-          const { chainId, wallet } = await ensure(layer);
-          const client = getPublicClient(wagmiConfig, { chainId: chainId as never });
-          // Simulate first so a revert shows its reason before the wallet asks for a signature.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { request } = await client.simulateContract({ account: address, address: target, abi, functionName, args } as any);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const hash = await wallet.writeContract({ ...(request as object), ...(await fees(client)) } as never);
-          const receipt = await client.waitForTransactionReceipt({ hash });
-          if (receipt.status !== 'success') throw new Error(`Transaction reverted (${hash})`);
-          return { hash };
-        },
+        deploy: (layer, artifact, args) => deploy(chainOf(layer), account, artifact, args),
+        write: async (layer, target, abi, functionName, args) => ({
+          hash: (await write(chainOf(layer), account, target, abi, functionName, args)).hash,
+        }),
       };
     },
     [address, net],
@@ -147,8 +121,7 @@ function Deploy() {
         if (!all && !s.results[step.id]?.skipped) break;
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg.split('\n').slice(0, 3).join(' '));
+      setError(errorText(e));
     } finally {
       setRunning(undefined);
     }
@@ -242,6 +215,7 @@ function Deploy() {
             </button>
           </div>
         </div>
+        {blockReason && !running && <p className="text-sm text-amber-300">{blockReason}</p>}
         {error && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
         {groups.map((g) => (
           <div key={g}>
@@ -274,6 +248,11 @@ function Deploy() {
                         </a>
                       )}
                       {r?.skipped && <span className="text-slate-500">skipped</span>}
+                      {r && !running && (
+                        <button className="text-slate-500 hover:text-amber-300" onClick={() => redoFrom(s.id)}>
+                          {confirmRedo === s.id ? 'click again: redo this and later steps' : 'redo from here'}
+                        </button>
+                      )}
                     </div>
                   </li>
                 );

@@ -1,15 +1,15 @@
 {
   "network": "testnet",
   "deployer": "0x1ADe0588fC195d7809Ef334919023e3C2E6570C5",
-  "updatedAt": "2026-10-31T06:52:52.612Z",
+  "updatedAt": "2026-10-31T07:58:23.908Z",
   "ethereum": {
     "chainId": 11155111,
     "adapter": "0x9Bf3587a5C1aB65B45ab8430425fae37516Ae389",
     "exitAdapter": "0xa7EDa0c4E77CC9bfEBE1Fd3a34cC3655eDC853a5",
-    "capitalAccountImpl": "0x7a487be3b1c2e0cb66482b3cedc1d1122a935c51",
-    "poolVaultImpl": "0xda03c93e840e2bf7b7c779994f93781265788424",
-    "poolFactory": "0xf149b25f84cf1abcbda7371e97bf666ae85f95d8",
-    "otcMarket": "0x9881eea555e0f5bf79d8b312cc2dc003a0a9417b"
+    "capitalAccountImpl": "0xf1dECF2571D97C91f1F9Cd4a49b16143b9661c8D",
+    "poolVaultImpl": "0x8edBD173c8Ba47b73df6f87e0778d50859f27b20",
+    "poolFactory": "0x57c30998bd5fd13ef7adba82c0c1ea712519cd00",
+    "otcMarket": "0x95be8312ec980dfcf292f8dfa5e040c56ffbc0d8"
   },
   "arbitrum": {
     "chainId": 421614,
@@ -23,8 +23,20 @@
     "referralAddress": "0x1ADe0588fC195d7809Ef334919023e3C2E6570C5",
     "mor": "0x34a285A1B1C166420Df5b6630132542923B5b27E",
     "stakeAssets": [
-      { "symbol": "stETHMock", "token": "0xa878Ad6FF38d6fAE81FBb048384cE91979d448DA", "decimals": 18, "depositPool": "0xFea33A23F97d785236F22693eDca564782ae98d0", "poolIndex": 0 },
-      { "symbol": "LINK", "token": "0xf8Fb3713D459D7C1018BD0A49D19b4C44290EBE5", "decimals": 18, "depositPool": "0x7f4f17be21219D7DA4C8E0d0B9be6a778354E5A5", "poolIndex": 0 }
+      {
+        "symbol": "stETHMock",
+        "token": "0xa878Ad6FF38d6fAE81FBb048384cE91979d448DA",
+        "decimals": 18,
+        "depositPool": "0xFea33A23F97d785236F22693eDca564782ae98d0",
+        "poolIndex": 0
+      },
+      {
+        "symbol": "LINK",
+        "token": "0xf8Fb3713D459D7C1018BD0A49D19b4C44290EBE5",
+        "decimals": 18,
+        "depositPool": "0x7f4f17be21219D7DA4C8E0d0B9be6a778354E5A5",
+        "poolIndex": 0
+      }
     ]
   }
 }

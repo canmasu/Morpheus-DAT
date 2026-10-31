@@ -157,7 +157,21 @@ contract MockDepositPool {
         return (withdrawLockPeriodAfterStake, claimLockPeriodAfterStake, claimLockPeriodAfterClaim, minimalStake, 0);
     }
 
+    bool public noClaimReceiver;
+    /// @dev Morpheus Sepolia's DepositPool pulls stake tokens into itself instead of via the distributor.
+    bool public pullsDirectly;
+
+    function setPullsDirectly(bool b) external {
+        pullsDirectly = b;
+    }
+
+    /// @dev Morpheus Sepolia's DepositPool has no setClaimReceiver.
+    function setNoClaimReceiver(bool b) external {
+        noClaimReceiver = b;
+    }
+
     function setClaimReceiver(uint256 idx, address receiver) external {
+        require(!noClaimReceiver);
         claimReceiver[idx][msg.sender] = receiver;
     }
 
@@ -168,7 +182,8 @@ contract MockDepositPool {
         require(claimLockEnd >= u.claimLockEnd, "DS: invalid claim lock end");
         if (referrer == address(0)) referrer = u.referrer;
         require(amount > 0, "DS: nothing to stake");
-        amount = distributor.supply(idx, msg.sender, amount);
+        if (pullsDirectly) IERC20(depositToken).transferFrom(msg.sender, address(this), amount);
+        else amount = distributor.supply(idx, msg.sender, amount);
         require(u.deposited + amount >= minimalStake, "DS: amount too low");
         u.deposited += amount;
         u.lastStake = uint128(block.timestamp);
@@ -186,7 +201,8 @@ contract MockDepositPool {
         uint256 left = u.deposited - amount;
         require(left >= minimalStake || left < 10, "DS: invalid withdraw amount");
         u.deposited = left;
-        distributor.withdraw(idx, msg.sender, amount);
+        if (pullsDirectly) IERC20(depositToken).transfer(msg.sender, amount);
+        else distributor.withdraw(idx, msg.sender, amount);
     }
 
     function claim(uint256 idx, address receiver) external payable {

@@ -99,6 +99,29 @@ contract PoolVaultTest is Base {
         assertEq(usdcPool.claimReceiver(0, acct), vault.morReceiver());
     }
 
+    function test_stakeWorksWithoutSetClaimReceiver() public {
+        usdcPool.setNoClaimReceiver(true);
+        uint256 id = stakeUsdc(vault, alice, 1_000e6, 0);
+        address acct = vault.position(id).account;
+        assertEq(adapter.deposited(address(usdcPool), acct), 1_000e6);
+        assertEq(usdcPool.claimReceiver(0, acct), address(0));
+    }
+
+    /// @dev Morpheus Sepolia: no setClaimReceiver, and the DepositPool pulls tokens itself.
+    function test_sepoliaStyleDepositPool() public {
+        usdcPool.setNoClaimReceiver(true);
+        usdcPool.setPullsDirectly(true);
+        uint256 id = stakeUsdc(vault, alice, 1_000e6, 0);
+        address acct = vault.position(id).account;
+        assertEq(usdc.balanceOf(address(usdcPool)), 1_000e6);
+        assertEq(usdc.allowance(acct, address(usdcPool)), 0, "allowance reset");
+        assertEq(usdc.allowance(acct, address(usdcPool.distributor())), 0, "allowance reset");
+        vm.warp(vault.position(id).end);
+        vm.prank(alice);
+        vault.withdraw(id);
+        assertEq(usdc.balanceOf(alice), 1_000e6);
+    }
+
     function test_morBoostLocksClaimToEarliestUnlock() public {
         PoolVault boosted = createExamplePool(true);
         vm.warp(boosted.depositStart() + 5 days);

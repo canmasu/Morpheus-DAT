@@ -46,17 +46,25 @@ contract CapitalAccount is Initializable {
         depositPool = depositPool_;
         stakeToken = IERC20(stakeToken_);
         morReceiver = morReceiver_;
-        // Lets a keeper use Morpheus `claimFor` while MOR still lands at the pool's splitter.
-        _call(_adapter().encodeSetClaimReceiver(depositPool_, morReceiver_), 0);
+        // Lets a keeper use Morpheus `claimFor` while MOR still lands at the pool's splitter. Best effort:
+        // some Morpheus deployments (e.g. Sepolia) lack it, and DAT's own claims name the receiver directly.
+        try _adapter().encodeSetClaimReceiver(depositPool_, morReceiver_) returns (bytes memory data) {
+            (bool ok,) = depositPool_.call(data);
+            ok;
+        } catch {}
     }
 
     /// @notice Stakes this account's whole stake-token balance into Morpheus.
+    /// @dev Mainnet v7 pulls through the distributor, Morpheus Sepolia pulls into the DepositPool itself, so
+    /// both get an exact allowance for the duration of the call only.
     function deposit(uint128 claimLockEnd, address referrer) external onlyVault returns (uint256 amount) {
         amount = stakeToken.balanceOf(address(this));
         (address spender, bytes memory data) = _adapter().encodeStake(depositPool, amount, claimLockEnd, referrer);
         stakeToken.forceApprove(spender, amount);
+        if (spender != depositPool) stakeToken.forceApprove(depositPool, amount);
         _call(data, 0);
         stakeToken.forceApprove(spender, 0);
+        if (spender != depositPool) stakeToken.forceApprove(depositPool, 0);
         uint256 left = stakeToken.balanceOf(address(this));
         if (left > DUST) revert StakeIncomplete(left);
     }
