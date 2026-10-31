@@ -1,8 +1,8 @@
 import { getAccount, getPublicClient, switchChain } from 'wagmi/actions';
-import { createWalletClient, custom, type Abi, type Address, type Chain, type EIP1193Provider, type Hash, type TransactionReceipt } from 'viem';
+import { createWalletClient, custom, type Abi, type Address, type Chain, type EIP1193Provider, type Hash, type PublicClient, type TransactionReceipt } from 'viem';
 import { wagmiConfig } from '@/config/wagmi';
 
-export const publicClient = (chain: Chain) => getPublicClient(wagmiConfig, { chainId: chain.id as never });
+export const publicClient = (chain: Chain) => getPublicClient(wagmiConfig, { chainId: chain.id as never }) as PublicClient;
 
 /** Switches the wallet to `chain` (talking to its provider directly: wagmi's cached chain id can lag) and
  * returns a wallet client bound to it. */
@@ -60,7 +60,9 @@ export async function write(
   const wallet = await walletOn(chain, account);
   const client = publicClient(chain);
   const { request } = await client.simulateContract({ account, address, abi, functionName, args, value } as never);
-  const hash = await wallet.writeContract({ ...(request as object), ...(await fees(chain)) } as never);
+  // 30% headroom: estimates run short when Morpheus makes inner calls with a fixed gas budget (seen on Sepolia).
+  const gas = ((await client.estimateContractGas({ account, address, abi, functionName, args, value } as never)) * 13n) / 10n;
+  const hash = await wallet.writeContract({ ...(request as object), gas, ...(await fees(chain)) } as never);
   const receipt = await client.waitForTransactionReceipt({ hash });
   if (receipt.status !== 'success') throw new Error(`Transaction reverted (${hash})`);
   return { hash, receipt };
@@ -69,4 +71,36 @@ export async function write(
 export function errorText(e: unknown) {
   const err = e as { shortMessage?: string; message?: string };
   return (err.shortMessage ?? err.message ?? String(e)).split('\n').slice(0, 3).join(' ');
+}
+
+/** approve() without a return value, so USDT (which returns nothing) decodes. */
+const approveAbi = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ type: 'uint256' }],
+  },
+] as const;
+
+/** Approves `amount` if the current allowance is lower. Resets to 0 first, as USDT requires. */
+export async function ensureAllowance(chain: Chain, account: Address, token: Address, spender: Address, amount: bigint) {
+  const current = await publicClient(chain).readContract({ address: token, abi: approveAbi, functionName: 'allowance', args: [account, spender] });
+  if (current >= amount) return;
+  if (current > 0n) await write(chain, account, token, approveAbi as Abi, 'approve', [spender, 0n]);
+  await write(chain, account, token, approveAbi as Abi, 'approve', [spender, amount]);
 }

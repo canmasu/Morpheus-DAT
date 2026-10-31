@@ -27,6 +27,8 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
     uint256 public constant YEAR = 365 days;
     uint256 public constant BPS = 10_000;
     uint256 public constant PREFETCH_WINDOW = 30 days;
+    /// @dev Below this, an account counts as fully out of Morpheus (stETH share rounding leaves a few wei).
+    uint256 internal constant MORPHEUS_DUST = 10;
 
     enum Status {
         Active,
@@ -116,6 +118,8 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
     event MorClaimTriggered(address indexed account, address indexed caller);
     event AccountCreated(uint256 sleeveId, uint256 epochId, uint256 lockOptionId, address account);
     event AccountPulled(address indexed account, uint256 received, uint256 recorded);
+    event AccountPartlyPulled(address indexed account, uint256 received, uint256 stillInMorpheus);
+    event ExitStillPending(uint256 indexed positionId, uint256 stillInMorpheus);
     event EmergencyExit(address indexed account, address indexed guardian);
     event DatesUpdated(uint64 depositStart, uint64 depositEnd);
     event SurplusSwept(uint256 sleeveId, address to, uint256 amount);
@@ -315,10 +319,15 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
     }
 
     /// @notice Retries an ExitPending withdrawal. Anyone can call; funds only go to the position owner.
+    /// If Morpheus hands back only part of the account (e.g. a per-call cap), each call pulls another part and
+    /// the owner is paid once all of it is back.
     function processExit(uint256 positionId) external nonReentrant {
         Position storage p = _positions[positionId];
         if (p.status != Status.ExitPending) revert BadStatus();
-        if (accountInfo[p.account].inMorpheus) _pull(p.account, true);
+        if (accountInfo[p.account].inMorpheus && !_pull(p.account, true)) {
+            emit ExitStillPending(positionId, _morpheusBalance(p.account));
+            return;
+        }
         _payout(positionId, p);
     }
 
@@ -556,7 +565,7 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
             emit AccountCreated(sleeveId, epochId, lockId, account);
         }
         AccountInfo storage info = accountInfo[account];
-        if (!info.inMorpheus) revert AccountClosed();
+        if (!info.inMorpheus || info.emergency) revert AccountClosed();
         info.principal += amount;
 
         (, uint256 earliestUnlock) = _accountTimes(epochId, lockId);
@@ -564,8 +573,11 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
         CapitalAccount(payable(account)).deposit(morBoost ? uint128(earliestUnlock) : 0, factory.referralAddress());
     }
 
-    /// @return ok false only when `mustSucceed` is false and Morpheus (or the adapter) reverted
-    function _pull(address account, bool mustSucceed) internal returns (bool ok) {
+    /// @notice Withdraws as much of the account as Morpheus releases. The account counts as out of Morpheus only
+    /// once Morpheus reports (almost) nothing left for it, so a partial withdrawal never strands principal.
+    /// @return done true once the account is fully out; false if Morpheus reverted (only when `mustSucceed` is
+    /// false) or still holds part of it
+    function _pull(address account, bool mustSucceed) internal returns (bool done) {
         AccountInfo storage info = accountInfo[account];
         Sleeve storage s = _sleeves[info.sleeveId];
         uint256 before = s.stakeToken.balanceOf(address(this));
@@ -577,10 +589,26 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
                 return false;
             }
         }
+        uint256 received = s.stakeToken.balanceOf(address(this)) - before;
+        uint256 left = _morpheusBalance(account);
+        if (left > MORPHEUS_DUST) {
+            emit AccountPartlyPulled(account, received, left);
+            return false;
+        }
         info.inMorpheus = false;
         s.principalHeld += info.principal;
-        emit AccountPulled(account, s.stakeToken.balanceOf(address(this)) - before, info.principal);
+        emit AccountPulled(account, received, info.principal);
         return true;
+    }
+
+    /// @dev What Morpheus still records for the account. If the adapter's view breaks (e.g. after a Morpheus
+    /// upgrade), the account is treated as empty rather than blocking exits forever.
+    function _morpheusBalance(address account) internal view returns (uint256) {
+        try factory.adapter().deposited(_sleeves[accountInfo[account].sleeveId].depositPool, account) returns (uint256 d) {
+            return d;
+        } catch {
+            return 0;
+        }
     }
 
     function _payout(uint256 positionId, Position storage p) internal {

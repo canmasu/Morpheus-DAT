@@ -38,3 +38,20 @@ anvil --fork-url https://arbitrum-sepolia-rpc.publicnode.com --port 8546 --chain
 cast rpc anvil_setBalance 0x1ADe0588fC195d7809Ef334919023e3C2E6570C5 0x8AC7230489E80000 --rpc-url http://127.0.0.1:8545   # and :8546
 npx tsx scripts/dry-run-deploy.ts
 ```
+
+## Local sandbox (USDC / USDT)
+
+Morpheus has no USDC or USDT pool on Sepolia, so stablecoins are tested on a local copy of mainnet with the real
+Morpheus USDC/USDT pools:
+
+```sh
+npm run sandbox    # terminal 1: Ethereum fork on :8545 (chain 31337) + stand-in Arbitrum on :8546 (chain 31338)
+npm run dev        # terminal 2
+```
+
+Pick **Local sandbox** in the header's network menu. The **Sandbox** page has a USDC/USDT faucet, ETH for gas and a
+time skip (Morpheus prices are frozen so skipping months keeps working). Deploy from Admin → Deploy as usual; the
+sandbox resets on every restart, so its addresses live only in the browser. MOR claims leave Ethereum, but nothing
+relays them to the stand-in Arbitrum.
+
+`npx tsx scripts/sandbox-e2e.ts` runs the whole USDT journey (deploy, pool, stake, one year, withdraw) on a running sandbox.

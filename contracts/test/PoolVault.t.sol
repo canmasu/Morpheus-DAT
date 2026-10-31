@@ -122,6 +122,47 @@ contract PoolVaultTest is Base {
         assertEq(usdc.balanceOf(alice), 1_000e6);
     }
 
+    /// @dev Morpheus Sepolia releases 1 token per withdraw call. Nothing may be stranded or underpaid.
+    function test_partialMorpheusWithdrawals() public {
+        uint256 a = stakeUsdc(vault, alice, 3_000e6, 0);
+        uint256 b = stakeUsdc(vault, bob, 2_000e6, 0);
+        usdcPool.setWithdrawCap(2_000e6);
+        vm.warp(vault.position(a).end);
+
+        vm.prank(alice);
+        vault.withdraw(a); // pulls 2,000 of 5,000: not done
+        assertEq(uint8(vault.position(a).status), uint8(PoolVault.Status.ExitPending));
+        assertEq(usdc.balanceOf(alice), 0);
+
+        vault.processExit(a); // 4,000 of 5,000: still pending, no revert
+        assertEq(uint8(vault.position(a).status), uint8(PoolVault.Status.ExitPending));
+        vault.processExit(a); // all out: Alice paid in full
+        assertEq(usdc.balanceOf(alice), 3_000e6);
+
+        vm.prank(bob);
+        vault.withdraw(b); // account already out: plain transfer
+        assertEq(usdc.balanceOf(bob), 2_000e6);
+    }
+
+    function test_partialPrefetchContinues() public {
+        uint256 a = stakeUsdc(vault, alice, 3_000e6, 0);
+        address acct = vault.position(a).account;
+        usdcPool.setWithdrawCap(1_000e6);
+        (,, uint256 prefetchAt) = vault.accountTimes(acct);
+        vm.warp(prefetchAt);
+        vault.prefetch(acct);
+        vault.prefetch(acct);
+        (, bool inMorpheus,,,,,) = vault.accountInfo(acct);
+        assertTrue(inMorpheus, "1,000 still in Morpheus");
+        vault.prefetch(acct);
+        (, inMorpheus,,,,,) = vault.accountInfo(acct);
+        assertFalse(inMorpheus);
+        vm.warp(vault.position(a).end);
+        vm.prank(alice);
+        vault.withdraw(a);
+        assertEq(usdc.balanceOf(alice), 3_000e6);
+    }
+
     function test_morBoostLocksClaimToEarliestUnlock() public {
         PoolVault boosted = createExamplePool(true);
         vm.warp(boosted.depositStart() + 5 days);

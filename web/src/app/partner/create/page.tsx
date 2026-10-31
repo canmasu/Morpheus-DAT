@@ -11,6 +11,7 @@ import { buildConfig, defaultForm, monthsToSeconds, reward, type PoolForm, type 
 import { approveIfNeeded, contractsFor, createPool, createTestToken, deploySplitter, tokenInfo } from '@/lib/partner';
 import { errorText } from '@/lib/tx';
 import { load, save } from '@/lib/storage';
+import { useChainNow } from '@/hooks/useChainNow';
 
 type Token = Awaited<ReturnType<typeof tokenInfo>>;
 type Phase = 'form' | 'approve' | 'create' | 'splitter' | 'done';
@@ -27,6 +28,9 @@ export default function CreatePoolPage() {
   const { net } = useNetwork();
   const { factory, splitterDeployer } = contractsFor(net);
   const draftKey = `dat-pool-draft-${net.name}`;
+  const chainNow = useChainNow(net);
+  const chainNowMs = chainNow * 1000;
+  const chainAhead = chainNow - Math.floor(Date.now() / 1000) > 60;
 
   const [form, setForm] = useState<PoolForm>(() => defaultForm(net));
   const [token, setToken] = useState<Token>();
@@ -40,10 +44,11 @@ export default function CreatePoolPage() {
   useEffect(() => {
     setMounted(true);
     const draft = load<PoolForm>(draftKey);
-    const base = defaultForm(net);
+    const base = defaultForm(net, chainNowMs);
     // Dates always start fresh; everything else comes from the saved draft.
     setForm(draft ? { ...base, ...draft, start: base.start, end: base.end } : base);
-  }, [draftKey, net]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, net, chainAhead]);
 
   const update = (f: PoolForm) => {
     setForm(f);
@@ -58,7 +63,7 @@ export default function CreatePoolPage() {
     tokenInfo(net, form.rewardToken, address, factory).then(setToken, () => setToken(undefined));
   }, [net, form.rewardToken, address, factory, tokenTick]);
 
-  const built = useMemo(() => buildConfig(form, net, token?.decimals), [form, net, token?.decimals]);
+  const built = useMemo(() => buildConfig(form, net, token?.decimals, chainNowMs), [form, net, token?.decimals, chainNowMs]);
   const balanceShort = token && built.budget > token.balance;
   const canSubmit = isConnected && factory && splitterDeployer && built.errors.length === 0 && !balanceShort && !busy;
 
@@ -168,7 +173,7 @@ export default function CreatePoolPage() {
             ) : null}
           </div>
         </div>
-        {net.name === 'testnet' && isConnected && !created && (
+        {net.name !== 'mainnet' && isConnected && !created && (
           <p className="text-sm text-slate-400">
             No token yet?{' '}
             <button className="text-mor hover:underline disabled:opacity-40" disabled={busy} onClick={makeTestToken}>

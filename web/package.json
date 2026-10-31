@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "sync-contracts": "node scripts/sync-contracts.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sandbox": "node scripts/sandbox.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.59.16",

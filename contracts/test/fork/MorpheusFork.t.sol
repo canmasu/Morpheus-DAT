@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IPoolTypes} from "../../src/interfaces/IPoolTypes.sol";
 import {IDepositPool} from "../../src/interfaces/IDepositPool.sol";
 import {PoolFactory} from "../../src/ethereum/PoolFactory.sol";
@@ -39,6 +40,8 @@ interface IOwnedDepositPool {
 contract MorpheusForkTest is Test, IPoolTypes {
     address constant USDC_POOL = 0x6cCE082851Add4c535352f596662521B4De4750E;
     address constant STETH_POOL = 0x47176B2Af9885dC6C4575d4eFd63895f7Aaa4790;
+    address constant USDT_POOL = 0x3B51989212BEdaB926794D6bf8e9E991218cf116;
+    address constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address constant DISTRIBUTOR = 0xDf1AC1AC255d91F5f4B1E3B4Aef57c5350F64C7A;
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -65,15 +68,17 @@ contract MorpheusForkTest is Test, IPoolTypes {
         }
         vm.createSelectFork(rpc);
 
-        address[] memory dps = new address[](2);
+        address[] memory dps = new address[](3);
         dps[0] = USDC_POOL;
         dps[1] = STETH_POOL;
-        uint256[] memory idx = new uint256[](2);
+        dps[2] = USDT_POOL;
+        uint256[] memory idx = new uint256[](3);
         adapter = new MorpheusAdapter(admin, dps, idx);
         ExitOnlyAdapter exitAdapter = new ExitOnlyAdapter(admin, dps, idx);
-        address[] memory tokens = new address[](2);
+        address[] memory tokens = new address[](3);
         tokens[0] = USDC;
         tokens[1] = STETH;
+        tokens[2] = USDT;
         factory = new PoolFactory(
             PoolFactory.InitParams({
                 admin: admin,
@@ -110,7 +115,7 @@ contract MorpheusForkTest is Test, IPoolTypes {
         cfg.epochLength = 30 days;
         cfg.lockOptions = new LockOption[](1);
         cfg.lockOptions[0] = LockOption(365 days, 10_000);
-        cfg.sleeves = new SleeveConfig[](2);
+        cfg.sleeves = new SleeveConfig[](3);
         cfg.sleeves[0].stakeToken = USDC;
         cfg.sleeves[0].unit = 1e12;
         cfg.sleeves[0].ratePerUnit = 20_000e18;
@@ -123,6 +128,12 @@ contract MorpheusForkTest is Test, IPoolTypes {
         cfg.sleeves[1].cap = 5_000e18;
         cfg.sleeves[1].tiers = new Tier[](1);
         cfg.sleeves[1].tiers[0].minPerWallet = 0.01e18;
+        cfg.sleeves[2].stakeToken = USDT;
+        cfg.sleeves[2].unit = 1e12;
+        cfg.sleeves[2].ratePerUnit = 20_000e18;
+        cfg.sleeves[2].cap = 10_000_000e6;
+        cfg.sleeves[2].tiers = new Tier[](1);
+        cfg.sleeves[2].tiers[0].minPerWallet = 1e6;
     }
 
     bytes32[] priceIds;
@@ -225,6 +236,39 @@ contract MorpheusForkTest is Test, IPoolTypes {
         // A year of Lido rebase on the Morpheus side is not ours; the vault returns exactly the recorded amount
         // (stETH share rounding can drop up to 2 wei on the transfer itself).
         assertApproxEqAbs(IERC20(STETH).balanceOf(alice), p.amount, 2);
+    }
+
+    /// @notice USDT: no return value on transfer/approve, and approve must go through zero. Two stakes into the
+    /// same Capital Account exercise the allowance reset.
+    function test_fork_usdtStakeClaimWithdraw() public {
+        vm.skip(noRpc);
+        _freezePrices();
+        assertTrue(adapter.isHealthy(USDT_POOL));
+        deal(USDT, alice, 15_000e6);
+        vm.startPrank(alice);
+        SafeERC20.forceApprove(IERC20(USDT), address(vault), 15_000e6);
+        uint256 a = vault.stake(2, 0, 10_000e6, 0);
+        uint256 b = vault.stake(2, 0, 5_000e6, 0);
+        vm.stopPrank();
+        address acct = vault.position(a).account;
+        assertEq(vault.position(b).account, acct);
+        assertApproxEqAbs(adapter.deposited(USDT_POOL, acct), 15_000e6, 2);
+        assertEq(IERC20(USDT).allowance(acct, USDT_POOL), 0);
+        assertEq(IERC20(USDT).allowance(acct, DISTRIBUTOR), 0);
+
+        vm.warp(block.timestamp + 15 days);
+        vm.deal(keeper, 1 ether);
+        vm.prank(keeper);
+        vault.claimMor{value: 0.05 ether}(2, 0, 0);
+
+        vm.warp(vault.position(a).end);
+        deal(USDT, address(vault), 10); // dust reserve
+        vm.startPrank(alice);
+        vault.withdraw(a);
+        vault.withdraw(b);
+        vm.stopPrank();
+        assertEq(IERC20(USDT).balanceOf(alice), 15_000e6);
+        assertEq(exampleToken.balanceOf(alice), 300e18);
     }
 
     /// @notice Hostile drill: Morpheus raises its locks. New stakes stop; existing principal still exits.

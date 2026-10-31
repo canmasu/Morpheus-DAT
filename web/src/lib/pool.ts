@@ -57,8 +57,8 @@ const toLocalInput = (d: Date) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-export function defaultForm(net: NetworkConfig): PoolForm {
-  const now = Date.now();
+export function defaultForm(net: NetworkConfig, nowMs = Date.now()): PoolForm {
+  const now = nowMs;
   return {
     rewardToken: '',
     locks: [
@@ -118,7 +118,7 @@ function num(s: string, field: string, errors: string[], decimals: number, allow
   }
 }
 
-export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: number | undefined) {
+export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: number | undefined, nowMs = Date.now()) {
   const errors: string[] = [];
   if (!isAddress(form.rewardToken)) errors.push('Reward token: enter a token address');
   else if (rewardDecimals === undefined) errors.push('Reward token: not an ERC-20 on ' + net.l1.name);
@@ -130,7 +130,7 @@ export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: 
   const startMs = new Date(form.start).getTime();
   const endMs = new Date(form.end).getTime();
   const epochDays = Number(form.epochDays);
-  if (!Number.isFinite(startMs) || startMs < Date.now() + 2 * 60_000) errors.push('Deposit start must be at least 2 minutes from now');
+  if (!Number.isFinite(startMs) || startMs < nowMs + 2 * 60_000) errors.push('Deposit start must be at least 2 minutes from now');
   if (!Number.isFinite(endMs) || endMs <= startMs) errors.push('Deposit end must be after start');
   if (!(epochDays >= 1)) errors.push('Epoch length must be at least 1 day');
   const epoch = BigInt(Math.round(epochDays * 86400));

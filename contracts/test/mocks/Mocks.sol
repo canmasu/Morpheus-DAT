@@ -158,6 +158,13 @@ contract MockDepositPool {
     }
 
     bool public noClaimReceiver;
+    /// @dev Morpheus Sepolia releases at most a fixed amount per withdraw call (0 = no cap).
+    uint256 public withdrawCap;
+
+    function setWithdrawCap(uint256 cap) external {
+        withdrawCap = cap;
+    }
+
     /// @dev Morpheus Sepolia's DepositPool pulls stake tokens into itself instead of via the distributor.
     bool public pullsDirectly;
 
@@ -197,6 +204,7 @@ contract MockDepositPool {
         UserData storage u = usersData[msg.sender][idx];
         require(u.deposited > 0, "DS: user isn't staked");
         if (amount > u.deposited) amount = u.deposited;
+        if (withdrawCap != 0 && amount > withdrawCap) amount = withdrawCap;
         require(block.timestamp > u.lastStake + withdrawLockPeriodAfterStake, "DS: pool withdraw is locked");
         uint256 left = u.deposited - amount;
         require(left >= minimalStake || left < 10, "DS: invalid withdraw amount");

@@ -26,7 +26,7 @@ export default function Home() {
         ))}
       </section>
       <p className="text-sm text-slate-500">
-        Pools open after deployment. See <Link className="text-mor hover:underline" href="/contracts/">contracts</Link>.
+        <Link className="text-mor hover:underline" href="/pools/">Browse pools</Link> · <Link className="text-mor hover:underline" href="/contracts/">contracts</Link>
       </p>
     </div>
   );

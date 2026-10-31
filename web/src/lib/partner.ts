@@ -2,7 +2,7 @@ import { type Abi, type Address, erc20Abi, parseEventLogs, parseUnits } from 'vi
 import * as A from '@/contracts/artifacts';
 import type { NetworkConfig } from '@/config/networks';
 import { deploymentsOf } from './deployments';
-import { deploy, publicClient, write } from './tx';
+import { deploy, ensureAllowance, publicClient, write } from './tx';
 import type { PoolConfig } from './pool';
 
 export function contractsFor(net: NetworkConfig) {
@@ -29,9 +29,7 @@ export async function createTestToken(net: NetworkConfig, partner: Address) {
 }
 
 export async function approveIfNeeded(net: NetworkConfig, partner: Address, token: Address, spender: Address, amount: bigint) {
-  const allowance = await publicClient(net.l1).readContract({ address: token, abi: erc20Abi, functionName: 'allowance', args: [partner, spender] });
-  if (allowance >= amount) return;
-  await write(net.l1, partner, token, erc20Abi as Abi, 'approve', [spender, amount]);
+  await ensureAllowance(net.l1, partner, token, spender, amount);
 }
 
 export async function createPool(net: NetworkConfig, partner: Address, factory: Address, cfg: PoolConfig, budget: bigint) {

@@ -152,7 +152,7 @@ function Deploy() {
               onClick={() => setNetwork(n)}
               className={net.name === n ? 'btn-primary' : 'btn-ghost'}
             >
-              {n === 'testnet' ? 'Testnet' : 'Mainnet'}
+              {n === 'testnet' ? 'Testnet' : n === 'local' ? 'Sandbox' : 'Mainnet'}
             </button>
           ))}
         </div>

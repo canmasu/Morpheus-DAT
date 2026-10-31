@@ -13,6 +13,10 @@ export default function AdminHome() {
             <h2 className="font-medium text-white">Deploy</h2>
             <p className="text-sm text-slate-400">Deploy and configure every contract on testnet or mainnet.</p>
           </Link>
+          <Link href="/admin/pools/" className="card hover:border-mor/50">
+            <h2 className="font-medium text-white">Pools</h2>
+            <p className="text-sm text-slate-400">Review pools and feature or unfeature them.</p>
+          </Link>
           <div className="card opacity-50">
             <h2 className="font-medium text-white">Health</h2>
             <p className="text-sm text-slate-400">Morpheus baseline, Exit pending, splitter balances. Coming next.</p>

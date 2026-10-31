@@ -7,9 +7,13 @@ import { useEffect, useState } from 'react';
 import { ConnectButton } from './ConnectButton';
 import { useNetwork } from './Providers';
 import { isAdmin } from '@/config/admin';
+import { NETWORKS, type NetworkName } from '@/config/networks';
+import { isLocalHost } from '@/lib/sandbox';
 
 const NAV = [
   { href: '/', label: 'Home' },
+  { href: '/pools/', label: 'Pools' },
+  { href: '/dashboard/', label: 'Dashboard' },
   { href: '/partner/', label: 'Partners' },
   { href: '/contracts/', label: 'Contracts' },
 ];
@@ -17,7 +21,7 @@ const NAV = [
 export function Header() {
   const path = usePathname();
   const { address } = useAccount();
-  const { net } = useNetwork();
+  const { net, setNetwork } = useNetwork();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const admin = mounted && isAdmin(address);
@@ -34,6 +38,11 @@ export function Header() {
 
   return (
     <>
+      {net.name === 'local' && (
+        <div className="bg-sky-500/15 py-1 text-center text-xs font-medium text-sky-300">
+          LOCAL SANDBOX · mainnet fork on this computer · <Link className="underline" href="/sandbox/">faucet and time skip</Link>
+        </div>
+      )}
       {net.name === 'testnet' && (
         <div className="bg-amber-500/15 py-1 text-center text-xs font-medium text-amber-300">
           TESTNET · {net.l1.name} + {net.l2.name} · tokens have no value
@@ -47,10 +56,29 @@ export function Header() {
             </Link>
             <nav className="hidden gap-6 sm:flex">
               {NAV.map((n) => link(n.href, n.label))}
-              {admin && link('/admin/deploy/', 'Admin')}
+              {mounted && net.name === 'local' && link('/sandbox/', 'Sandbox')}
+              {admin && link('/admin/', 'Admin')}
             </nav>
           </div>
-          <ConnectButton />
+          <div className="flex items-center gap-2">
+            {mounted && (
+              <select
+                className="rounded-lg border border-ink-line bg-ink px-2 py-2 text-xs text-slate-300"
+                value={net.name}
+                onChange={(e) => setNetwork(e.target.value as NetworkName)}
+                aria-label="Network"
+              >
+                {(Object.keys(NETWORKS) as NetworkName[])
+                  .filter((n) => n !== 'local' || isLocalHost())
+                  .map((n) => (
+                    <option key={n} value={n}>
+                      {n === 'testnet' ? 'Testnet' : n === 'local' ? 'Local sandbox' : 'Mainnet'}
+                    </option>
+                  ))}
+              </select>
+            )}
+            <ConnectButton />
+          </div>
         </div>
       </header>
     </>

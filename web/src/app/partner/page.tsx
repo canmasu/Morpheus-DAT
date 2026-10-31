@@ -97,6 +97,9 @@ export default function PartnerPage() {
                   <a className="mono text-slate-500 hover:underline" href={explorerAddress(net.l1, p.vault)} target="_blank" rel="noreferrer">
                     {p.vault}
                   </a>
+                  <Link className="ml-3 text-xs text-mor hover:underline" href={`/pool/?v=${p.vault}`}>
+                    Open stake page →
+                  </Link>
                 </div>
                 {p.splitterLive ? (
                   <span className="text-xs text-mor">✓ MOR splitter live on {net.l2.name}</span>
