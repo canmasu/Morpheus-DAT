@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import type { Address } from 'viem';
 import { deploy, errorText, write } from '@/lib/tx';
+import { keccak256 } from 'viem';
+import * as Artifacts from '@/contracts/artifacts';
+
+/** Fingerprint of the contract code this page deploys, to check the browser is running the latest build. */
+const BUILD = keccak256(
+  (Artifacts.PoolVault.bytecode + Artifacts.CapitalAccount.bytecode.slice(2) + Artifacts.PoolFactory.bytecode.slice(2)) as `0x${string}`,
+).slice(2, 10);
 import { NETWORKS, explorerAddress, explorerTx, type NetworkName } from '@/config/networks';
 import { useNetwork } from '@/components/Providers';
 import { AdminGate } from '@/components/AdminGate';
@@ -142,6 +149,9 @@ function Deploy() {
           <p className="mt-1 max-w-2xl text-sm text-slate-400">
             Runs the deployment from your wallet, Arbitrum first, then Ethereum. Your wallet will switch chains as needed.
             Progress is saved in this browser, so you can stop and resume.
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Contracts build <span className="mono text-slate-300">{BUILD}</span>
           </p>
         </div>
         <div className="flex gap-2">

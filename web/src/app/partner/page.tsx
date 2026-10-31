@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { formatUnits, type Address } from 'viem';
 import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
+import { MorPanel } from '@/components/MorPanel';
 import { explorerAddress } from '@/config/networks';
 import { contractsFor, deploySplitter, listPools, type PoolSummary } from '@/lib/partner';
 import { errorText } from '@/lib/tx';
@@ -115,6 +116,7 @@ export default function PartnerPage() {
                 <Stat k="Deposits" v={`${fmtDate(p.depositStart)} → ${fmtDate(p.depositEnd)}`} />
                 <Stat k="Positions" v={p.positions.toString()} />
               </dl>
+              <MorPanel vault={p.vault} splitter={p.morReceiver} partner={p.partner} splitterLive={p.splitterLive} />
               <p className="text-xs text-slate-500">
                 MOR receiver:{' '}
                 <a className="mono hover:underline" href={explorerAddress(net.l2, p.morReceiver)} target="_blank" rel="noreferrer">
