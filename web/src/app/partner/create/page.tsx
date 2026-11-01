@@ -128,6 +128,8 @@ export default function CreatePoolPage() {
   }
 
   const enabledAssets = net.stakeAssets.filter((a) => form.sleeves[a.symbol]?.enabled);
+  const minLockMonths = (((Number(form.epochDays) || 0) + 30) * 12) / 365;
+  const applyQuickTest = () => update({ ...form, epochDays: '1', locks: [{ months: '1.1', mult: '1.00' }], morBoost: false });
   const rSym = token?.symbol ?? 'tokens';
 
   return (
@@ -184,10 +186,16 @@ export default function CreatePoolPage() {
       </Section>
 
       <Section n={2} title="Lock options">
-        <p className="text-xs text-slate-500">
-          12 months = 365 days. Each lock must be at least the epoch length + 30 days, because Capital Accounts leave Morpheus 30 days
-          before unlock.
-        </p>
+        <Help>
+          <p>
+            How long contributors can lock their stake, and how much extra reward each lock earns. The multiplier scales the base rate you
+            set in step 3: <b>1.00x</b> = the base rate, <b>2.50x</b> = 2.5 times the base rate per year.
+          </p>
+          <p>
+            Shortest allowed lock right now: <b>{minLockMonths.toFixed(1)} months</b> (epoch length in step 4 + 30 days), because the pool
+            takes each stake back out of Morpheus 30 days before it unlocks. 12 months = 365 days.
+          </p>
+        </Help>
         <div className="space-y-2">
           {form.locks.map((l, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -219,6 +227,17 @@ export default function CreatePoolPage() {
       </Section>
 
       <Section n={3} title="Stake assets and rates">
+        <Help>
+          <p>
+            Pick what contributors can stake and how much of your token they earn. The rate is per year at 1.00x: e.g. <b>20,000 per year
+            for every 1,000,000 USDC</b> means $1M staked for 12 months at 1.00x earns 20,000 tokens. The table under each asset shows the
+            exact amount for every lock.
+          </p>
+          <p>
+            <b>Pool cap</b>: most that can be staked in this asset in total. <b>Min per stake</b>: smallest single stake.{' '}
+            <b>Max per wallet</b>: most one wallet can have staked at once (leave empty for no limit).
+          </p>
+        </Help>
         {net.stakeAssets.map((a) => {
           const f = form.sleeves[a.symbol];
           if (!f) return null;
@@ -243,7 +262,7 @@ export default function CreatePoolPage() {
                   </div>
                   <label className="flex items-center gap-2 text-sm text-slate-300">
                     <input type="checkbox" checked={f.fixedEnabled} onChange={(e) => setSleeve(a.symbol, { fixedEnabled: e.target.checked })} />
-                    Also offer a fixed-amount tier (like Alpha)
+                    Also offer fixed-amount stakes (like the Alpha tier: one-click amounts with their own multiplier and lock)
                   </label>
                   {f.fixedEnabled && (
                     <div className="grid gap-4 sm:grid-cols-3">
@@ -273,8 +292,17 @@ export default function CreatePoolPage() {
         })}
       </Section>
 
-      <Section n={4} title="Dates">
-        <div className="grid gap-4 sm:grid-cols-3">
+      <Section n={4} title="Dates, epochs and MOR timing">
+        {net.name !== 'mainnet' && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-sky-500/10 p-3 text-xs text-sky-200">
+            <span>Testing? Use settings that let you reach unlock and withdraw in about 5 weeks.</span>
+            <button className="btn-ghost" onClick={applyQuickTest}>
+              Quick test settings
+            </button>
+          </div>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Deposits open</label>
             <input className="input" type="datetime-local" value={form.start} onChange={(e) => update({ ...form, start: e.target.value })} />
@@ -283,19 +311,57 @@ export default function CreatePoolPage() {
             <label className="label">Deposits close</label>
             <input className="input" type="datetime-local" value={form.end} onChange={(e) => update({ ...form, end: e.target.value })} />
           </div>
+        </div>
+        <Help>
+          <p>
+            The window when contributors can stake. After it closes, no new stakes; existing stakes keep earning until their own unlock, and
+            you can take back any budget nobody reserved. Before deposits open you can change both dates; after that you can only extend
+            the close date.
+          </p>
+        </Help>
+
+        <div className="max-w-xs">
           <Input label="Epoch length (days)" value={form.epochDays} onChange={(v) => update({ ...form, epochDays: v })} />
         </div>
-        <p className="text-xs text-slate-500">
-          Before deposits open you can change both dates; afterwards you can only extend the close date. Stakes in the same epoch and lock
-          share one Morpheus address.
-        </p>
-        <label className="flex items-start gap-2 text-sm text-slate-300">
-          <input type="checkbox" className="mt-1" checked={form.morBoost} onChange={(e) => update({ ...form, morBoost: e.target.checked })} />
-          <span>
-            MOR boost: lock each Capital Account&apos;s MOR claim until its earliest unlock. Morpheus pays more MOR, but you receive it at
-            unlock instead of every few weeks. Contributors are not affected.
-          </span>
-        </label>
+        <Help>
+          <p>
+            Morpheus restarts its waiting times (7 days before a withdraw, 14 days before a MOR claim) every time an address receives a
+            new stake. If the whole pool used one address, each new stake would delay MOR and withdrawals for everyone.
+          </p>
+          <p>
+            So the pool groups stakes: everyone who stakes in the same {form.epochDays || '30'}-day period with the same lock shares one
+            Morpheus address. Example: Alice stakes on 5 Nov and Bob on 20 Nov, both for 12 months: same group. Carol stakes in December,
+            or picks 24 months: a new group. Once a period ends, its group is never restaked into, so its MOR can be claimed and its
+            staked tokens returned on time. Contributors never see this.
+          </p>
+          <p>
+            <b>30 days</b> for real pools (fewer groups, fewer MOR claims). <b>1 day</b> for testing (allows locks as short as 1.1
+            months).
+          </p>
+        </Help>
+
+        <div className="space-y-2">
+          <label className="label">How you receive MOR</label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              [true, 'MOR boost: more MOR, later', 'Each group\'s MOR claim is locked until its earliest unlock (e.g. 12 months). Morpheus pays a higher MOR multiplier for this lock. You receive MOR in one amount at unlock.'],
+              [false, 'Regular: MOR every ~2 weeks', 'MOR can be claimed as it builds up, about every 14 days after a group stops taking stakes. Normal Morpheus rate.'],
+            ].map(([value, title, text]) => (
+              <button
+                key={String(value)}
+                onClick={() => update({ ...form, morBoost: value as boolean })}
+                className={`rounded-lg border p-3 text-left text-xs ${form.morBoost === value ? 'border-mor bg-mor/10' : 'border-ink-line hover:border-slate-500'}`}
+              >
+                <div className="mb-1 text-sm font-medium text-white">
+                  {form.morBoost === value ? '● ' : '○ '}
+                  {title as string}
+                </div>
+                <div className="text-slate-400">{text as string}</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500">Contributors are not affected either way: their reward and unlock date are the same.</p>
+        </div>
       </Section>
 
       <Section n={5} title="Reward budget">
@@ -312,10 +378,13 @@ export default function CreatePoolPage() {
             </button>
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Stakes are accepted only while the unreserved budget covers their full reward. You can top up any time and withdraw unreserved
-          budget after deposits close.
-        </p>
+        <Help>
+          <p>
+            The {rSym} you put in the pool now. Every stake reserves its full reward from this budget the moment it is made, so a stake is
+            only accepted while enough unreserved budget is left. You can top up any time, and take back whatever is still unreserved
+            after deposits close. Reserved rewards can never be taken back.
+          </p>
+        </Help>
       </Section>
 
       <section className="card space-y-4">
@@ -402,6 +471,10 @@ function RewardTable(props: {
       </tbody>
     </table>
   );
+}
+
+function Help({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-1.5 text-xs leading-relaxed text-slate-400">{children}</div>;
 }
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {

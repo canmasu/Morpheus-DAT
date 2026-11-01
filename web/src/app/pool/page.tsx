@@ -194,8 +194,8 @@ function Pool() {
           <h2 className="font-medium text-white">How it works</h2>
           <p>Your reward is fixed and reserved when you stake. It accrues every second and you can claim it any time.</p>
           <p>
-            Your principal goes to Morpheus Capital, which uses its yield to earn MOR for the Partner. 30 days before your unlock it is
-            pulled back into the pool, so at unlock you withdraw the full amount you staked.
+            Your staked tokens go to Morpheus Capital, where their yield earns MOR for the Partner. 30 days before your unlock they are
+            moved back into the pool, so at unlock you withdraw the full amount you staked.
           </p>
           <p>
             Deposits: {fmtDate(pool.depositStart)} → {fmtDate(pool.depositEnd)}. Reward capacity left:{' '}
@@ -275,7 +275,7 @@ function Pool() {
             <span className="text-slate-300">{fmtDate(BigInt(now) + lock.duration)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">Principal back</span>
+            <span className="text-slate-400">Stake back at unlock</span>
             <span className="text-slate-300">
               {amount > 0n ? fmt(amount, sleeve.asset.decimals) : '—'} {sleeve.asset.symbol}
             </span>

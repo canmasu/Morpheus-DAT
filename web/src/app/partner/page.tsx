@@ -60,8 +60,8 @@ export default function PartnerPage() {
           <p className="text-sm text-mor">Partners</p>
           <h1 className="text-2xl font-semibold text-white">Fund a pool with your token. Receive MOR.</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-400">
-            Contributors stake {net.stakeAssets.map((a) => a.symbol).join(' or ')} and earn your token. Their principal&apos;s yield
-            earns MOR for you on {net.l2.name}, minus the DAT fee.
+            Contributors stake {net.stakeAssets.map((a) => a.symbol).join(' or ')} and receive your token. The yield on their staked
+            tokens earns MOR for you on {net.l2.name}, minus the DAT fee.
           </p>
         </div>
         <Link href="/partner/create/" className="btn-primary">

@@ -60,7 +60,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Your positions</h1>
-        <p className="mt-1 text-sm text-slate-400">Rewards accrue every second. Principal comes back in full at unlock.</p>
+        <p className="mt-1 text-sm text-slate-400">Rewards accrue every second. Your full stake comes back at unlock.</p>
       </div>
       {error && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
       {!positions && <p className="text-sm text-slate-500">Loading…</p>}
@@ -99,7 +99,7 @@ export default function Dashboard() {
             </dl>
             {p.status === 1 && (
               <p className="text-xs text-amber-300">
-                Morpheus did not return the principal yet. Your full balance is recorded; retry below (anyone can, funds only go to you).
+                Morpheus has not released all of your staked tokens yet. Your full stake is recorded on-chain; retry below (anyone can, tokens only go to you).
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -108,7 +108,7 @@ export default function Dashboard() {
               </button>
               {p.status === 0 && (
                 <button className="btn-primary" disabled={!!busy || !unlocked} onClick={() => act(p, 'withdraw')}>
-                  {busy === k('withdraw') ? 'Confirm in wallet…' : unlocked ? 'Withdraw principal + reward' : 'Withdraw at unlock'}
+                  {busy === k('withdraw') ? 'Confirm in wallet…' : unlocked ? 'Withdraw stake + reward' : 'Withdraw at unlock'}
                 </button>
               )}
               {p.status === 1 && (

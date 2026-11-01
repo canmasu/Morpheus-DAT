@@ -139,7 +139,7 @@ export default function SandboxPage() {
           <li>Partners → Create a pool: create tEXM, enable USDT, keep a 12-month lock, create.</li>
           <li>Here: + 10,000 USDT, then + 1 hour so deposits are open.</li>
           <li>Pools → your pool → stake USDT.</li>
-          <li>Here: + 1 year. Dashboard → Withdraw principal + reward.</li>
+          <li>Here: + 1 year. Dashboard → Withdraw stake + reward.</li>
         </ol>
       </section>
     </div>

@@ -26,7 +26,7 @@ export default function PoolsPage() {
       <div>
         <h1 className="text-2xl font-semibold text-white">Pools</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Stake {net.stakeAssets.map((a) => a.symbol).join(' or ')}. Keep your principal. Earn Partner Tokens, fixed when you stake.
+          Stake {net.stakeAssets.map((a) => a.symbol).join(' or ')}. Get your full stake back at unlock. Receive Partner Tokens, fixed when you stake.
         </p>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}

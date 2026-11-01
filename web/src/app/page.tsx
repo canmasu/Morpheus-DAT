@@ -6,7 +6,7 @@ export default function Home() {
       <section className="max-w-2xl space-y-4">
         <p className="text-sm font-medium text-mor">Morpheus DAT · an exchange of yield</p>
         <h1 className="text-4xl font-semibold tracking-tight text-white">
-          Stake USDC or stETH. Keep your principal. Earn Partner Tokens.
+          Stake USDC, USDT or stETH. Get your full stake back at unlock. Receive Partner Tokens.
         </h1>
         <p className="text-slate-400">
           Capital Contributors give the yield on their stake and receive a Partner Token, fixed at stake time.
@@ -15,9 +15,9 @@ export default function Home() {
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
         {[
-          ['Contributors', 'Pick a pool, a lock of 12 to 60 months and an amount. The exact reward is reserved when you stake. Principal comes back in full at unlock.'],
+          ['Contributors', 'Pick a pool, a lock of 12 to 60 months and an amount. The exact reward is reserved when you stake. Your full stake comes back at unlock.'],
           ['Partners', 'Fund a pool with your token. Receive MOR on Arbitrum, minus the DAT fee.'],
-          ['Principal safety', 'Rewards never depend on Morpheus. Principal can only return to its own pool, then its owner.'],
+          ['Your stake stays yours', 'Rewards never depend on Morpheus. Staked tokens can only go back to their own pool, then to you.'],
         ].map(([t, d]) => (
           <div key={t} className="card">
             <h3 className="mb-2 font-medium text-white">{t}</h3>

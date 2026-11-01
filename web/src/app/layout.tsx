@@ -6,7 +6,7 @@ import { TxToasts } from '@/components/TxToasts';
 
 export const metadata: Metadata = {
   title: 'Morpheus DAT',
-  description: 'Stake USDC or stETH. Keep your principal. Earn Partner Tokens.',
+  description: 'Stake USDC, USDT or stETH. Get your full stake back at unlock. Receive Partner Tokens.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
