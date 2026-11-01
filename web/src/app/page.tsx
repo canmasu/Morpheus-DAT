@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { StakeIllustration } from '@/components/StakeIllustration';
 
 export default function Home() {
   return (
     <div className="space-y-12">
-      <section className="max-w-2xl space-y-4">
+      <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_1.1fr]">
+        <div className="min-w-0 space-y-4">
         <p className="text-sm font-medium text-mor">Morpheus DAT · an exchange of yield</p>
         <h1 className="text-4xl font-semibold tracking-tight text-white">
           Stake USDC, USDT or stETH. Get your full stake back at unlock. Receive Partner Tokens.
@@ -12,6 +14,11 @@ export default function Home() {
           Capital Contributors give the yield on their stake and receive a Partner Token, fixed at stake time.
           Partners fund a pool with their own token and receive MOR from Morpheus Capital.
         </p>
+        <Link href="/pools/" className="btn-primary">
+          Browse pools
+        </Link>
+        </div>
+        <StakeIllustration className="h-auto w-full min-w-0 max-w-full text-slate-300" />
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
         {[

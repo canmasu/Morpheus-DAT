@@ -49,9 +49,9 @@ export function Header() {
         </div>
       )}
       <header className="border-b border-ink-line">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:gap-4">
           <div className="flex items-center gap-8">
-            <Link href="/" className="font-semibold tracking-tight text-white">
+            <Link href="/" className="whitespace-nowrap font-semibold tracking-tight text-white">
               Morpheus <span className="text-mor">DAT</span>
             </Link>
             <nav className="hidden gap-6 sm:flex">
@@ -63,7 +63,7 @@ export function Header() {
           <div className="flex items-center gap-2">
             {mounted && (
               <select
-                className="rounded-lg border border-ink-line bg-ink px-2 py-2 text-xs text-slate-300"
+                className="w-[5.5rem] rounded-lg border border-ink-line bg-ink px-1.5 py-2 text-xs text-slate-300 sm:w-auto sm:px-2"
                 value={net.name}
                 onChange={(e) => setNetwork(e.target.value as NetworkName)}
                 aria-label="Network"
