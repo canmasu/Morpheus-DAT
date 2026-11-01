@@ -21,3 +21,7 @@ export function countdown(to: bigint, now = Date.now() / 1000) {
   const m = Math.floor(s / 60);
   return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
+
+/** 1,000,000 → "1M", 10,000 → "10K". */
+export const fmtCompact = (v: bigint, decimals: number) =>
+  Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 2 }).format(Number(formatUnits(v, decimals)));

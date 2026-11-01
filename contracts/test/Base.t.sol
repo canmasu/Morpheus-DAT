@@ -111,12 +111,19 @@ abstract contract Base is Test, IPoolTypes {
         cfg.sleeves[0].tiers[0].kind = TierKind.RANGE;
         cfg.sleeves[0].tiers[0].minPerWallet = 1_000e6;
         cfg.sleeves[0].tiers[0].maxPerWallet = 5_000_000e6;
-        // Alpha: fixed $100 for 12 months, 0.1 EXM for the year (0.05x the base rate).
-        cfg.sleeves[0].tiers[1].kind = TierKind.FIXED;
-        cfg.sleeves[0].tiers[1].amounts = new uint256[](1);
+        // Alpha: any stake from $100 to $999,999.99 on 12 months, multiplier by bracket.
+        cfg.sleeves[0].tiers[1].kind = TierKind.BRACKET;
+        cfg.sleeves[0].tiers[1].amounts = new uint256[](4);
         cfg.sleeves[0].tiers[1].amounts[0] = 100e6;
-        cfg.sleeves[0].tiers[1].multBps = new uint32[](1);
+        cfg.sleeves[0].tiers[1].amounts[1] = 1_000e6;
+        cfg.sleeves[0].tiers[1].amounts[2] = 10_000e6;
+        cfg.sleeves[0].tiers[1].amounts[3] = 100_000e6;
+        cfg.sleeves[0].tiers[1].multBps = new uint32[](4);
         cfg.sleeves[0].tiers[1].multBps[0] = 500;
+        cfg.sleeves[0].tiers[1].multBps[1] = 1_000;
+        cfg.sleeves[0].tiers[1].multBps[2] = 1_500;
+        cfg.sleeves[0].tiers[1].multBps[3] = 2_500;
+        cfg.sleeves[0].tiers[1].maxPerWallet = 1_000_000e6 - 1;
         cfg.sleeves[0].tiers[1].lockOptionId = 0;
         // stETH: 10,000 EXM per 500 stETH per year.
         cfg.sleeves[1].stakeToken = address(steth);

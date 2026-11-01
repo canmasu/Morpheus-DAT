@@ -10,9 +10,10 @@ import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
 import { explorerAddress } from '@/config/networks';
 import { mintTestToken, readPool, stake, type PoolDetail } from '@/lib/vault';
-import { reward } from '@/lib/pool';
+import { baseMultBps, fmtMult, reward } from '@/lib/pool';
 import { errorText, publicClient } from '@/lib/tx';
-import { countdown, fmt, fmtDate, months, short } from '@/lib/format';
+import { countdown, fmt, fmtCompact, fmtDate, months, short } from '@/lib/format';
+import { ShareButton } from '@/components/ShareButton';
 import { TokenIcon } from '@/components/TokenIcon';
 import { CapacityRing } from '@/components/CapacityRing';
 import { useChainNow } from '@/hooks/useChainNow';
@@ -51,19 +52,22 @@ function Pool() {
   useEffect(load, [load]);
 
   const sleeve = pool?.sleeves[sleeveId];
-  const tier = sleeve?.tiers[tierId];
-  const fixed = tier?.kind === 1;
-  const effLock = fixed ? tier!.lockOptionId : lockId;
-
-  const amount = useMemo(() => {
-    if (!sleeve || !tier) return 0n;
-    if (fixed) return tier.amounts[fixedIndex] ?? 0n;
+  // The tier follows the amount (Alpha brackets below Omega's range) unless the pool uses one-click fixed amounts.
+  const autoTier = !!sleeve && sleeve.tiers.every((t) => t.kind !== 1);
+  const typed = useMemo(() => {
+    if (!sleeve) return 0n;
     try {
       return parseUnits(amountText.replace(/,/g, '') || '0', sleeve.asset.decimals);
     } catch {
       return 0n;
     }
-  }, [sleeve, tier, fixed, fixedIndex, amountText]);
+  }, [sleeve, amountText]);
+  const activeTierId = autoTier && sleeve ? pickTier(sleeve.tiers, typed) : tierId;
+  const tier = sleeve?.tiers[activeTierId];
+  const fixed = tier?.kind === 1;
+  const bracket = tier?.kind === 2;
+  const effLock = fixed || bracket ? tier!.lockOptionId : lockId;
+  const amount = useMemo(() => (fixed && tier ? (tier.amounts[fixedIndex] ?? 0n) : typed), [fixed, tier, fixedIndex, typed]);
 
   const refreshBalance = useCallback(() => {
     if (!sleeve || !address) return;
@@ -82,10 +86,10 @@ function Pool() {
         address: pool.vault,
         abi: A.PoolVault.abi,
         functionName: 'quote',
-        args: [BigInt(sleeveId), BigInt(tierId), fixed ? BigInt(fixedIndex) : amount, BigInt(effLock)],
+        args: [BigInt(sleeveId), BigInt(activeTierId), fixed ? BigInt(fixedIndex) : amount, BigInt(effLock)],
       })
       .then(setQuote, () => setQuote(undefined));
-  }, [net, pool, sleeve, tier, fixed, fixedIndex, amount, sleeveId, tierId, effLock]);
+  }, [net, pool, sleeve, tier, fixed, fixedIndex, amount, sleeveId, activeTierId, effLock]);
 
   if (!vault) return <p className="card text-sm text-slate-400">Missing pool address. Open a pool from the Pools page.</p>;
   if (loadError) return <p className="card text-sm text-red-400">{loadError}</p>;
@@ -99,7 +103,14 @@ function Pool() {
   if (BigInt(now) >= pool.depositEnd) issues.push('Deposits are closed');
   if (pool.paused.deposits || pool.paused.all) issues.push('Deposits are paused');
   if (!sleeve.healthy) issues.push(`New ${sleeve.asset.symbol} stakes are halted: Morpheus settings changed (exits are not affected)`);
-  if (!fixed && amount > 0n && amount < tier.minPerWallet) issues.push(`Minimum stake is ${fmt(tier.minPerWallet, sleeve.asset.decimals)} ${sleeve.asset.symbol}`);
+  if (!fixed && amount > 0n && !tierFits(tier, amount)) {
+    const lo = sleeve.tiers.reduce((m, t) => (tierMin(t) < m ? tierMin(t) : m), tierMin(sleeve.tiers[0]));
+    issues.push(
+      amount < lo
+        ? `Minimum stake is ${fmt(lo, sleeve.asset.decimals)} ${sleeve.asset.symbol}`
+        : `${fmt(amount, sleeve.asset.decimals)} ${sleeve.asset.symbol} is above the maximum for this pool`,
+    );
+  }
   if (amount > capLeft) issues.push(`Only ${fmt(capLeft, sleeve.asset.decimals)} ${sleeve.asset.symbol} left in the cap`);
   if (balance !== undefined && amount > balance) issues.push(`Your ${sleeve.asset.symbol} balance is too low`);
   if (quote !== undefined && quote > pool.available) issues.push('The pool does not have enough reward budget left for this stake');
@@ -111,7 +122,7 @@ function Pool() {
     setError(undefined);
     setDone(undefined);
     try {
-      const { hash } = await stake(net, address, pool.vault, sleeve, tierId, fixed ? BigInt(fixedIndex) : amount, amount, effLock);
+      const { hash } = await stake(net, address, pool.vault, sleeve, activeTierId, fixed ? BigInt(fixedIndex) : amount, amount, effLock);
       setDone(hash);
       setAmountText('');
       load();
@@ -146,7 +157,32 @@ function Pool() {
         ? { label: 'Open', tone: 'bg-mor/10 text-mor' }
         : { label: 'Closed', tone: 'bg-white/5 text-slate-400' };
   const capRatio = sleeve.cap === 0n ? 0 : Number((sleeve.totalStaked * 1_000_000n) / sleeve.cap) / 1_000_000;
-  const multX = ((fixed ? tier.multBps[fixedIndex] : lock.multBps) / 10000).toFixed(2);
+  const base = baseMultBps(pool.locks, pool.sleeves.flatMap((x) => x.tiers));
+  const allMults = [...mults, ...pool.sleeves.flatMap((x) => x.tiers.filter((t) => t.kind !== 0).flatMap((t) => [...t.multBps]))];
+  const curMult = fixed ? tier.multBps[fixedIndex] : bracket ? bracketMult(tier, amount) : lock.multBps;
+  const multX = fmtMult(curMult, base);
+  const hasAlpha = sleeve.tiers.some((t) => t.kind === 2);
+  const tierName = (t: (typeof sleeve.tiers)[number]) => (t.kind === 2 ? 'Alpha' : t.kind === 0 && hasAlpha ? 'Omega' : '');
+
+  // Share text: the smallest stake this asset allows, on its lock, with the exact reward.
+  const shortestLock = pool.locks.reduce((a, b) => (b.duration < a.duration ? b : a));
+  const examples = sleeve.tiers.flatMap((t) =>
+    t.kind === 1
+      ? t.amounts.map((a, i) => ({ amount: a, mult: t.multBps[i], lock: pool.locks[t.lockOptionId] }))
+      : t.kind === 2
+        ? [{ amount: t.amounts[0], mult: t.multBps[0], lock: pool.locks[t.lockOptionId] }]
+          : [{ amount: t.minPerWallet > 0n ? t.minPerWallet : 10n ** BigInt(sleeve.asset.decimals), mult: shortestLock.multBps, lock: shortestLock }],
+  );
+  const ex = examples.reduce((a, b) => (b.amount < a.amount ? b : a));
+  const exReward = reward(ex.amount, sleeve.ratePerUnit, sleeve.unit, ex.mult, ex.lock.duration);
+  const shareText =
+    `Stake ${fmt(ex.amount, sleeve.asset.decimals)} ${sleeve.asset.symbol} for ${months(ex.lock.duration)} in the ${pool.reward.symbol} pool on Morpheus DAT: ` +
+    `get your ${fmt(ex.amount, sleeve.asset.decimals)} ${sleeve.asset.symbol} back at unlock + ${fmt(exReward, pool.reward.decimals)} ${pool.reward.symbol}.`;
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/pool/?v=${pool.vault}` : '';
+  const tierLabel = (t: (typeof sleeve.tiers)[number]) =>
+    t.kind === 1
+      ? `Fixed: ${t.amounts.map((a) => fmtCompact(a, sleeve.asset.decimals)).join(' / ')}`
+      : `${tierName(t) ? `${tierName(t)} · ` : ''}${fmtCompact(tierMin(t), sleeve.asset.decimals)} – ${t.maxPerWallet > 0n ? fmtCompact(t.maxPerWallet, sleeve.asset.decimals) : 'any'} ${sleeve.asset.symbol}`;
 
   return (
     <div className="space-y-6">
@@ -175,6 +211,7 @@ function Pool() {
             </div>
           </div>
         </div>
+        <ShareButton text={shareText} url={shareUrl} />
       </div>
 
       {!pool.featured && (
@@ -187,7 +224,7 @@ function Pool() {
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-ink-line bg-ink-line md:grid-cols-4">
         <Stat label="Reward capacity left" value={`${fmt(pool.available, pool.reward.decimals, 0)} ${pool.reward.symbol}`} />
         <Stat label="Lock options" value={`${months(pool.locks.reduce((a, b) => (b.duration < a.duration ? b : a)).duration).replace(' months', '')} – ${months(pool.locks.reduce((a, b) => (b.duration > a.duration ? b : a)).duration)}`} />
-        <Stat label="Multiplier" value={`${(Math.min(...mults) / 10000).toFixed(2)}x – ${(Math.max(...mults) / 10000).toFixed(2)}x`} />
+        <Stat label="Multiplier" value={`${fmtMult(Math.min(...allMults), base)} – ${fmtMult(Math.max(...allMults), base)}`} />
         <Stat label="Deposits close" value={new Date(Number(pool.depositEnd) * 1000).toLocaleDateString()} />
       </div>
 
@@ -219,6 +256,15 @@ function Pool() {
                   </div>
                 </div>
                 <div className="mt-5 overflow-x-auto">
+                  {s.tiers.some((t) => t.kind === 2) &&
+                    s.tiers
+                      .filter((t) => t.kind === 0)
+                      .map((t, ti) => (
+                        <div key={ti} className="mb-2 text-xs font-medium text-slate-300">
+                          Omega · {fmt(t.minPerWallet, s.asset.decimals)} – {t.maxPerWallet > 0n ? fmt(t.maxPerWallet, s.asset.decimals) : 'any'}{' '}
+                          {s.asset.symbol} · choose a lock
+                        </div>
+                      ))}
                   <table className="w-full text-sm">
                     <thead className="text-xs text-slate-500">
                       <tr>
@@ -234,7 +280,7 @@ function Pool() {
                       {pool.locks.map((l) => (
                         <tr key={l.id}>
                           <td className="py-2.5">{months(l.duration)}</td>
-                          <td className="py-2.5 text-right text-slate-400">{(l.multBps / 10000).toFixed(2)}x</td>
+                          <td className="py-2.5 text-right text-slate-400">{fmtMult(l.multBps, base)}</td>
                           <td className="py-2.5 text-right">
                             {fmt(reward(s.unit, s.ratePerUnit, s.unit, l.multBps, YEAR), pool.reward.decimals)} {pool.reward.symbol}
                           </td>
@@ -246,6 +292,38 @@ function Pool() {
                     </tbody>
                   </table>
                 </div>
+                {s.tiers
+                  .filter((t) => t.kind === 2)
+                  .map((t, ti) => (
+                    <div key={ti} className="mt-6 overflow-x-auto">
+                      <div className="mb-2 text-xs font-medium text-slate-300">
+                        Alpha · {fmt(t.amounts[0], s.asset.decimals)} – {t.maxPerWallet > 0n ? fmt(t.maxPerWallet, s.asset.decimals) : 'any'}{' '}
+                        {s.asset.symbol} · {months(pool.locks[t.lockOptionId].duration)}
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead className="text-xs text-slate-500">
+                          <tr>
+                            <th className="pb-2 text-left font-normal">Stake from</th>
+                            <th className="pb-2 text-right font-normal">Multiplier</th>
+                            <th className="pb-2 text-right font-normal">Per year at that amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-ink-line text-slate-200">
+                          {t.amounts.map((a, i) => (
+                            <tr key={i}>
+                              <td className="py-2.5">
+                                {fmt(a, s.asset.decimals)} {s.asset.symbol}
+                              </td>
+                              <td className="py-2.5 text-right text-slate-400">{fmtMult(t.multBps[i], base)}</td>
+                              <td className="py-2.5 text-right font-medium text-white">
+                                {fmt(reward(a, s.ratePerUnit, s.unit, t.multBps[i], YEAR), pool.reward.decimals)} {pool.reward.symbol}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
               </section>
             );
           })}
@@ -298,9 +376,9 @@ function Pool() {
             </div>
           )}
 
-          {sleeve.tiers.length > 1 && (
+          {!autoTier && sleeve.tiers.length > 1 && (
             <Segmented
-              options={sleeve.tiers.map((t, i) => [i, t.kind === 1 ? 'Fixed amount' : 'Any amount'])}
+              options={sleeve.tiers.map((t, i) => [i, tierLabel(t)])}
               value={tierId}
               onChange={setTierId}
             />
@@ -349,11 +427,28 @@ function Pool() {
             )}
           </div>
 
+          {autoTier && sleeve.tiers.length > 1 && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {sleeve.tiers.map((t, i) => (
+                <span
+                  key={i}
+                  className={`rounded-full px-2.5 py-1 ${
+                    i === activeTierId && amount > 0n && tierFits(t, amount) ? 'bg-mor/15 text-mor' : 'bg-white/5 text-slate-400'
+                  }`}
+                >
+                  {tierLabel(t)}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* lock */}
           <div>
             <div className="mb-2 text-xs text-slate-500">Lock</div>
-            {fixed ? (
-              <p className="text-sm text-slate-300">{months(lock.duration)} (fixed for this tier)</p>
+            {fixed || bracket ? (
+              <p className="text-sm text-slate-300">
+                {months(lock.duration)} (fixed for the {tierName(tier) || 'selected'} tier)
+              </p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {pool.locks.map((l) => (
@@ -365,7 +460,7 @@ function Pool() {
                     }`}
                   >
                     <div className="text-sm font-medium text-white">{months(l.duration).replace(' months', 'm')}</div>
-                    <div className="text-[11px] text-slate-400">{(l.multBps / 10000).toFixed(2)}x</div>
+                    <div className="text-[11px] text-slate-400">{fmtMult(l.multBps, base)}</div>
                   </button>
                 ))}
               </div>
@@ -384,7 +479,7 @@ function Pool() {
             <Row k="≈ Per day">
               {quote !== undefined && quote > 0n ? `${fmt((quote * 86400n) / lock.duration, pool.reward.decimals)} ${pool.reward.symbol}` : '—'}
             </Row>
-            <Row k="Multiplier">{multX}x</Row>
+            <Row k="Multiplier">{multX}</Row>
             <Row k="Unlock">{fmtDate(BigInt(now) + lock.duration)}</Row>
             <Row k="Stake back at unlock">
               {amount > 0n ? fmt(amount, sleeve.asset.decimals) : '—'} {sleeve.asset.symbol}
@@ -475,4 +570,33 @@ function Segmented({ options, value, onChange }: { options: [number, string][]; 
       ))}
     </div>
   );
+}
+
+type TierView = PoolDetail['sleeves'][number]['tiers'][number];
+
+/** Smallest single stake a tier accepts. */
+const tierMin = (t: TierView) => (t.kind === 2 ? t.amounts[0] : t.kind === 1 ? t.amounts.reduce((a, b) => (b < a ? b : a)) : t.minPerWallet);
+
+/** Whether a single stake of `amount` falls in the tier (wallet totals are checked by the contract). */
+const tierFits = (t: TierView, amount: bigint) =>
+  t.kind === 1 ? t.amounts.includes(amount) : amount >= tierMin(t) && (t.maxPerWallet === 0n || amount <= t.maxPerWallet);
+
+/** The tier a typed amount belongs to; below every tier → the smallest, above every tier → the largest. */
+function pickTier(tiers: TierView[], amount: bigint): number {
+  const hit = tiers.findIndex((t) => tierFits(t, amount));
+  if (hit >= 0) return hit;
+  let best = 0;
+  tiers.forEach((t, i) => {
+    if (amount < tierMin(tiers[best]) ? tierMin(t) < tierMin(tiers[best]) : tierMin(t) > tierMin(tiers[best])) best = i;
+  });
+  return best;
+}
+
+/** Multiplier of the highest Alpha bracket the amount reaches. */
+function bracketMult(t: TierView, amount: bigint) {
+  let i = 0;
+  t.amounts.forEach((a, j) => {
+    if (a <= amount) i = j;
+  });
+  return t.multBps[i];
 }

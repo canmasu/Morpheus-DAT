@@ -22,8 +22,13 @@ contract PoolVaultTest is Base {
         assertEq(vault.quote(0, 0, 1_000_000e6, 4), 250_000e18);
         assertEq(vault.quote(0, 0, 1_000_000e6, 0), 20_000e18);
         assertEq(vault.quote(0, 0, 1_000_000e6, 1), 44_000e18);
-        // Alpha $100 = 0.1 EXM for the year
-        assertEq(vault.quote(0, 1, 0, 0), 0.1e18);
+        // Alpha brackets: proportional to the amount at the bracket's multiplier
+        assertEq(vault.quote(0, 1, 100e6, 0), 0.1e18);
+        assertEq(vault.quote(0, 1, 999e6, 0), 0.999e18);
+        assertEq(vault.quote(0, 1, 1_000e6, 0), 2e18);
+        assertEq(vault.quote(0, 1, 10_000e6, 0), 30e18);
+        assertEq(vault.quote(0, 1, 100_000e6, 0), 500e18);
+        assertEq(vault.quote(0, 1, 999_999e6, 0), 4_999.995e18);
         // stETH: 500 stETH -> 10,000 / 22,000 / 37,500 / 60,000 / 125,000 EXM over the lock
         assertEq(vault.quote(1, 0, 500e18, 0), 10_000e18);
         assertEq(vault.quote(1, 0, 500e18, 1), 22_000e18);
@@ -63,15 +68,28 @@ contract PoolVaultTest is Base {
         vm.stopPrank();
     }
 
-    function test_fixedTierRequiresItsLock() public {
-        usdc.mint(alice, 100e6);
+    function testFuzz_bracketPicksHighestReachedBracket(uint64 raw) public view {
+        uint256 a = bound(raw, 100e6, 1_000_000e6 - 1);
+        uint256 mult = a >= 100_000e6 ? 2_500 : a >= 10_000e6 ? 1_500 : a >= 1_000e6 ? 1_000 : 500;
+        // 20,000 EXM per $1M per year, 12 months
+        assertEq(vault.quote(0, 1, a, 0), (a * 20_000e18 * mult) / (1e12 * 10_000));
+    }
+
+    function test_bracketTierLimitsAndLock() public {
+        usdc.mint(alice, 2_000_000e6);
         vm.startPrank(alice);
-        usdc.approve(address(vault), 100e6);
-        vm.expectRevert(PoolVault.InvalidTier.selector);
-        vault.stake(0, 1, 0, 2);
-        uint256 id = vault.stake(0, 1, 0, 0);
+        usdc.approve(address(vault), type(uint256).max);
+        vm.expectRevert(PoolVault.InvalidTier.selector); // Alpha is 12 months only
+        vault.stake(0, 1, 1_000e6, 2);
+        vm.expectRevert(PoolVault.WalletLimit.selector); // below $100
+        vault.stake(0, 1, 99.99e6, 0);
+        vm.expectRevert(PoolVault.WalletLimit.selector); // $1M is Omega
+        vault.stake(0, 1, 1_000_000e6, 0);
+        uint256 id = vault.stake(0, 1, 101.1e6, 0); // still the $100 bracket
         vm.stopPrank();
-        assertEq(vault.position(id).amount, 100e6);
+        assertEq(vault.position(id).amount, 101.1e6);
+        assertEq(vault.position(id).reward, 0.1011e18);
+        assertEq(vault.position(id).end - vault.position(id).start, MONTH12);
     }
 
     // ------------------------------------------------------------ Capital Accounts (flow 3)

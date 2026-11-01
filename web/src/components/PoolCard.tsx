@@ -8,7 +8,7 @@ import { TokenIcon } from './TokenIcon';
 import { CapacityRing } from './CapacityRing';
 import { explorerAddress } from '@/config/networks';
 import { readPool, type PoolDetail } from '@/lib/vault';
-import { reward } from '@/lib/pool';
+import { baseMultBps, fmtMult, reward } from '@/lib/pool';
 import { fmt, months, countdown, short } from '@/lib/format';
 import { useChainNow } from '@/hooks/useChainNow';
 
@@ -30,9 +30,12 @@ export function PoolCard({ vault }: { vault: Address }) {
       : now < p.depositEnd
         ? { label: 'Open', tone: 'bg-mor/10 text-mor' }
         : { label: 'Closed', tone: 'bg-white/5 text-slate-400' };
-  const mults = p.locks.map((l) => l.multBps);
+  // All multipliers in the pool (locks + Alpha brackets), shown relative to the lowest one.
+  const tiers = p.sleeves.flatMap((s) => s.tiers);
+  const mults = [...p.locks.map((l) => l.multBps), ...tiers.filter((t) => t.kind !== 0).flatMap((t) => [...t.multBps])];
   const minMult = Math.min(...mults);
   const maxMult = Math.max(...mults);
+  const base = baseMultBps(p.locks, tiers);
   const shortest = p.locks.reduce((a, b) => (b.duration < a.duration ? b : a), p.locks[0]);
   const longest = p.locks.reduce((a, b) => (b.duration > a.duration ? b : a), p.locks[0]);
   const lockRange =
@@ -60,7 +63,9 @@ export function PoolCard({ vault }: { vault: Address }) {
 
       {/* rewards */}
       <div className="mt-5 space-y-3">
-        <div className="text-xs text-slate-500">Reward per year, by lock ({(minMult / 10000).toFixed(2)}x – {(maxMult / 10000).toFixed(2)}x)</div>
+        <div className="text-xs text-slate-500">
+          Reward per year, by tier and lock ({fmtMult(minMult, base)} – {fmtMult(maxMult, base)})
+        </div>
         {p.sleeves.map((s) => {
           const lo = reward(s.unit, s.ratePerUnit, s.unit, minMult, YEAR);
           const hi = reward(s.unit, s.ratePerUnit, s.unit, maxMult, YEAR);

@@ -206,10 +206,15 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
         if (sc.tiers.length == 0 || sc.tiers.length > type(uint8).max) revert InvalidTier();
         for (uint256 t; t < sc.tiers.length; ++t) {
             Tier calldata tc = sc.tiers[t];
-            if (tc.kind == TierKind.FIXED) {
+            if (tc.kind == TierKind.FIXED || tc.kind == TierKind.BRACKET) {
                 if (tc.amounts.length == 0 || tc.amounts.length != tc.multBps.length || tc.lockOptionId >= lockCount) {
                     revert InvalidTier();
                 }
+                for (uint256 i; i < tc.multBps.length; ++i) {
+                    if (tc.multBps[i] == 0) revert InvalidTier();
+                    if (tc.kind == TierKind.BRACKET && i > 0 && tc.amounts[i] <= tc.amounts[i - 1]) revert InvalidTier();
+                }
+                if (tc.kind == TierKind.BRACKET && tc.maxPerWallet != 0 && tc.maxPerWallet < tc.amounts[0]) revert InvalidTier();
             } else if (tc.maxPerWallet != 0 && tc.maxPerWallet < tc.minPerWallet) {
                 revert InvalidTier();
             }
@@ -521,6 +526,13 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
         if (t.kind == TierKind.FIXED) {
             if (amountOrIndex >= t.amounts.length || lockOptionId != t.lockOptionId) revert InvalidTier();
             return (t.amounts[amountOrIndex], t.lockOptionId, t.multBps[amountOrIndex]);
+        }
+        if (t.kind == TierKind.BRACKET) {
+            if (lockOptionId != t.lockOptionId) revert InvalidTier();
+            if (amountOrIndex < t.amounts[0] || (t.maxPerWallet != 0 && amountOrIndex > t.maxPerWallet)) revert WalletLimit();
+            uint256 i = t.amounts.length - 1;
+            while (t.amounts[i] > amountOrIndex) --i;
+            return (amountOrIndex, t.lockOptionId, t.multBps[i]);
         }
         if (lockOptionId >= _lockOptions.length) revert InvalidLockOption();
         return (amountOrIndex, lockOptionId, _lockOptions[lockOptionId].multBps);

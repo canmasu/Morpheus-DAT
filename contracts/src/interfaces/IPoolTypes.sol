@@ -12,11 +12,15 @@ interface IPoolTypes {
 
     enum TierKind {
         RANGE,
-        FIXED
+        FIXED,
+        BRACKET
     }
 
     /// @dev RANGE: any amount in [minPerWallet, maxPerWallet] (maxPerWallet = 0 means no max), any lock option.
     ///      FIXED: one of `amounts[i]` with multiplier `multBps[i]`, always on `lockOptionId`.
+    ///      BRACKET: any single stake from `amounts[0]` up to `maxPerWallet` (inclusive, 0 = no max), always on
+    ///      `lockOptionId`. `amounts` are ascending bracket starts; a stake earns `multBps[i]` of the highest bracket
+    ///      it reaches, on its full amount (e.g. Alpha: $100 / $1k / $10k / $100k at 0.05x / 0.10x / 0.15x / 0.25x).
     struct Tier {
         TierKind kind;
         uint256 minPerWallet;

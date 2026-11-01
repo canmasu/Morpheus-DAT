@@ -7,7 +7,7 @@ import { formatUnits, isAddress, type Address } from 'viem';
 import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
 import { explorerAddress } from '@/config/networks';
-import { buildConfig, defaultForm, monthsToSeconds, reward, type PoolForm, type SleeveForm } from '@/lib/pool';
+import { applyExamplePool, buildConfig, defaultForm, monthsToSeconds, reward, type PoolForm, type SleeveForm } from '@/lib/pool';
 import { approveIfNeeded, contractsFor, createPool, createTestToken, deploySplitter, tokenInfo } from '@/lib/partner';
 import { errorText } from '@/lib/tx';
 import { load, save } from '@/lib/storage';
@@ -227,6 +227,17 @@ export default function CreatePoolPage() {
       </Section>
 
       <Section n={3} title="Stake assets and rates">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-white/5 p-3 text-xs text-slate-300">
+          <span>
+            Example from the proposal, for every asset: <b>Alpha</b> from $100 (brackets $100 / $1k / $10k / $100k, 12 months) and{' '}
+            <b>Omega</b> ($1M – $10M per wallet, 12 – 60 months), 20,000 tokens per $1M per year. stETH amounts count 1 stETH as
+            $1,000{net.name === 'testnet' ? '; on testnet LINK counts as 1 USDC' : ''}. Contributors see Alpha $100 as 1x and Omega 12
+            months as 20x.
+          </span>
+          <button className="btn-ghost" onClick={() => update(applyExamplePool(form, net))}>
+            Fill Example pool
+          </button>
+        </div>
         <Help>
           <p>
             Pick what contributors can stake and how much of your token they earn. The rate is per year at 1.00x: e.g. <b>20,000 per year
@@ -235,7 +246,8 @@ export default function CreatePoolPage() {
           </p>
           <p>
             <b>Pool cap</b>: most that can be staked in this asset in total. <b>Min per stake</b>: smallest single stake.{' '}
-            <b>Max per wallet</b>: most one wallet can have staked at once (leave empty for no limit).
+            <b>Max per wallet</b>: most one wallet can have staked at once (leave empty for no limit). These three make the Omega tier
+            (any amount in range, contributor picks the lock). The Alpha tier below covers smaller stakes on one lock.
           </p>
         </Help>
         {net.stakeAssets.map((a) => {
@@ -262,12 +274,13 @@ export default function CreatePoolPage() {
                   </div>
                   <label className="flex items-center gap-2 text-sm text-slate-300">
                     <input type="checkbox" checked={f.fixedEnabled} onChange={(e) => setSleeve(a.symbol, { fixedEnabled: e.target.checked })} />
-                    Also offer fixed-amount stakes (like the Alpha tier: one-click amounts with their own multiplier and lock)
+                    Also offer the Alpha tier for smaller stakes (amount brackets, each with its own multiplier, one lock)
                   </label>
                   {f.fixedEnabled && (
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      <Input label={`Amounts (${a.symbol}, comma separated)`} value={f.fixedAmounts} onChange={(v) => setSleeve(a.symbol, { fixedAmounts: v })} />
-                      <Input label="Multiplier on the base rate" value={f.fixedMult} onChange={(v) => setSleeve(a.symbol, { fixedMult: v })} />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input label={`Bracket starts (${a.symbol}, ascending)`} value={f.fixedAmounts} onChange={(v) => setSleeve(a.symbol, { fixedAmounts: v })} />
+                      <Input label="Multiplier per bracket (or one for all)" value={f.fixedMult} onChange={(v) => setSleeve(a.symbol, { fixedMult: v })} />
+                      <Input label={`Max per stake (${a.symbol}, empty = none)`} value={f.fixedMax} onChange={(v) => setSleeve(a.symbol, { fixedMax: v })} />
                       <div>
                         <label className="label">Lock</label>
                         <select
