@@ -91,8 +91,9 @@ export default function Dashboard() {
             <div className="h-1.5 overflow-hidden rounded bg-ink">
               <div className="h-full bg-mor" style={{ width: `${elapsed * 100}%` }} />
             </div>
-            <dl className="grid gap-3 text-sm sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
               <Stat k="Claimable now" v={`${fmt(p.accrued, p.rewardDecimals)} ${p.rewardSymbol}`} />
+              <Stat k="≈ Per day" v={`${fmt((p.reward * 86400n) / (p.end - p.start || 1n), p.rewardDecimals)} ${p.rewardSymbol}`} />
               <Stat k="Claimed" v={`${fmt(p.claimed, p.rewardDecimals)} ${p.rewardSymbol}`} />
               <Stat k="Unlock" v={fmtDate(p.end)} />
               <Stat k={unlocked ? 'Status' : 'Time left'} v={unlocked ? 'Unlocked' : countdown(p.end, now)} />
