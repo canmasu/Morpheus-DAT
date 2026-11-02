@@ -219,7 +219,7 @@ contract MockDepositPool {
         require(block.timestamp > u.lastStake + claimLockPeriodAfterStake, "DS: pool claim is locked (S)");
         require(block.timestamp > u.lastClaim + claimLockPeriodAfterClaim, "DS: pool claim is locked (C)");
         require(block.timestamp > u.claimLockEnd, "DS: user claim is locked");
-        require(u.deposited > 0, "DS: nothing to claim");
+        require(u.lastStake > 0 && u.lastClaim < block.timestamp, "DS: nothing to claim");
         u.lastClaim = uint128(block.timestamp);
         u.claimLockEnd = 0;
         emit ClaimSent(msg.sender, receiver, MOR_PER_CLAIM, msg.value / 2);

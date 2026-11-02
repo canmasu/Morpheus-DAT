@@ -8,7 +8,6 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
   const usdc = (cx: number, cy: number, r: number) => (
     <g {...stroke} stroke={ink}>
       <circle cx={cx} cy={cy} r={r} />
-      <circle cx={cx} cy={cy} r={r - 7} strokeWidth={1.5} opacity={0.6} />
       {/* $ sign */}
       <path
         d={`M${cx + r * 0.22} ${cy - r * 0.28} C ${cx + r * 0.1} ${cy - r * 0.42}, ${cx - r * 0.34} ${cy - r * 0.4}, ${cx - r * 0.3} ${cy - r * 0.14}
@@ -68,7 +67,6 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
       </text>
       <g {...stroke} stroke={accent}>
         <circle cx="656" cy="108" r="38" />
-        <circle cx="656" cy="108" r="31" strokeWidth={1.5} opacity={0.6} />
         {/* simple king crown */}
         <path d="M638 121 L 641 99 L 649 109 L 656 93 L 663 109 L 671 99 L 674 121 Z" />
         <path d="M638 127 H 674" />

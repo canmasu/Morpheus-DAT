@@ -1,15 +1,15 @@
 {
   "network": "testnet",
   "deployer": "0x1ADe0588fC195d7809Ef334919023e3C2E6570C5",
-  "updatedAt": "2026-10-31T15:30:40.132Z",
+  "updatedAt": "2026-11-01T08:59:41.347Z",
   "ethereum": {
     "chainId": 11155111,
     "adapter": "0x9Bf3587a5C1aB65B45ab8430425fae37516Ae389",
     "exitAdapter": "0xa7EDa0c4E77CC9bfEBE1Fd3a34cC3655eDC853a5",
     "capitalAccountImpl": "0xf1dECF2571D97C91f1F9Cd4a49b16143b9661c8D",
-    "poolVaultImpl": "0x7331f574FFDaD7d65AFF08C1D5636CbB1fb7e40d",
-    "poolFactory": "0x0a08dc1401508efaca6fe5b366247508cc41a30d",
-    "otcMarket": "0xcb52513d7dd7bd2af4c1b0fd21673dafeb8bea7a"
+    "poolVaultImpl": "0xC338FA58E1dFA4f4e0E6e4C5368A6dA95E19D455",
+    "poolFactory": "0x88db851dc0d3dc736d60792ba9a80757cd6874a4",
+    "otcMarket": "0x6bfffc0d72f5dbb52ca2a965060f9f22921b7df6"
   },
   "arbitrum": {
     "chainId": 421614,

@@ -9,11 +9,12 @@ import * as A from '@/contracts/artifacts';
 import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
 import { explorerAddress } from '@/config/networks';
-import { mintTestToken, readPool, stake, type PoolDetail } from '@/lib/vault';
+import { mintTestToken, readPool, refAmount, stake, type PoolDetail } from '@/lib/vault';
 import { baseMultBps, fmtMult, reward } from '@/lib/pool';
 import { errorText, publicClient } from '@/lib/tx';
 import { countdown, fmt, fmtCompact, fmtDate, months, short } from '@/lib/format';
 import { ShareButton } from '@/components/ShareButton';
+import { AddToWallet } from '@/components/AddToWallet';
 import { TokenIcon } from '@/components/TokenIcon';
 import { CapacityRing } from '@/components/CapacityRing';
 import { useChainNow } from '@/hooks/useChainNow';
@@ -208,6 +209,7 @@ function Pool() {
                 Reward token {short(pool.reward.token)} ↗
               </a>
               <span>Partner {short(pool.partner)}</span>
+              <AddToWallet chain={net.l1} token={pool.reward.token} symbol={pool.reward.symbol} decimals={pool.reward.decimals} />
             </div>
           </div>
         </div>
@@ -230,8 +232,8 @@ function Pool() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         <div className="min-w-0 space-y-6">
-          {/* per-asset overview */}
-          {pool.sleeves.map((s) => {
+          {/* overview of the asset selected in the Stake panel */}
+          {pool.sleeves.filter((s) => s.id === sleeveId).map((s) => {
             const ratio = s.cap === 0n ? 0 : Number((s.totalStaked * 1_000_000n) / s.cap) / 1_000_000;
             return (
               <section key={s.id} className="rounded-2xl border border-ink-line bg-ink-soft p-5">
@@ -271,7 +273,7 @@ function Pool() {
                         <th className="pb-2 text-left font-normal">Lock</th>
                         <th className="pb-2 text-right font-normal">Multiplier</th>
                         <th className="pb-2 text-right font-normal">
-                          Per year · per {fmt(s.unit, s.asset.decimals)} {s.asset.symbol}
+                          Per year · per {fmt(refAmount(s), s.asset.decimals)} {s.asset.symbol}
                         </th>
                         <th className="pb-2 text-right font-normal">Over the lock</th>
                       </tr>
@@ -282,10 +284,10 @@ function Pool() {
                           <td className="py-2.5">{months(l.duration)}</td>
                           <td className="py-2.5 text-right text-slate-400">{fmtMult(l.multBps, base)}</td>
                           <td className="py-2.5 text-right">
-                            {fmt(reward(s.unit, s.ratePerUnit, s.unit, l.multBps, YEAR), pool.reward.decimals)} {pool.reward.symbol}
+                            {fmt(reward(refAmount(s), s.ratePerUnit, s.unit, l.multBps, YEAR), pool.reward.decimals)} {pool.reward.symbol}
                           </td>
                           <td className="py-2.5 text-right font-medium text-white">
-                            {fmt(reward(s.unit, s.ratePerUnit, s.unit, l.multBps, l.duration), pool.reward.decimals)} {pool.reward.symbol}
+                            {fmt(reward(refAmount(s), s.ratePerUnit, s.unit, l.multBps, l.duration), pool.reward.decimals)} {pool.reward.symbol}
                           </td>
                         </tr>
                       ))}

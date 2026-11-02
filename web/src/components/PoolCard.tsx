@@ -7,7 +7,7 @@ import { useNetwork } from './Providers';
 import { TokenIcon } from './TokenIcon';
 import { CapacityRing } from './CapacityRing';
 import { explorerAddress } from '@/config/networks';
-import { readPool, type PoolDetail } from '@/lib/vault';
+import { readPool, refAmount, type PoolDetail } from '@/lib/vault';
 import { baseMultBps, fmtMult, reward } from '@/lib/pool';
 import { fmt, months, countdown, short } from '@/lib/format';
 import { useChainNow } from '@/hooks/useChainNow';
@@ -67,8 +67,9 @@ export function PoolCard({ vault }: { vault: Address }) {
           Reward per year, by tier and lock ({fmtMult(minMult, base)} – {fmtMult(maxMult, base)})
         </div>
         {p.sleeves.map((s) => {
-          const lo = reward(s.unit, s.ratePerUnit, s.unit, minMult, YEAR);
-          const hi = reward(s.unit, s.ratePerUnit, s.unit, maxMult, YEAR);
+          const ref = refAmount(s);
+          const lo = reward(ref, s.ratePerUnit, s.unit, minMult, YEAR);
+          const hi = reward(ref, s.ratePerUnit, s.unit, maxMult, YEAR);
           return (
             <div key={s.id} className="flex items-center gap-3">
               <TokenIcon symbol={s.asset.symbol} size={28} />
@@ -79,7 +80,7 @@ export function PoolCard({ vault }: { vault: Address }) {
                   <span className="text-sm font-normal text-slate-400">{p.reward.symbol}</span>
                 </div>
                 <div className="text-xs text-slate-500">
-                  per {fmt(s.unit, s.asset.decimals)} {s.asset.symbol} staked
+                  per {fmt(ref, s.asset.decimals)} {s.asset.symbol} staked
                 </div>
               </div>
             </div>

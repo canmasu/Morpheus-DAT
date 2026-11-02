@@ -112,3 +112,16 @@ export const distributeMor = (net: NetworkConfig, me: Address, splitter: Address
 /** Sandbox only: MOR never arrives from LayerZero locally, so this mints stand-in MOR to the splitter. */
 export const sandboxSendMor = (net: NetworkConfig, me: Address, splitter: Address, amount: bigint) =>
   write(net.l2, me, net.mor, A.MockERC20.abi as Abi, 'mint', [splitter, amount]);
+
+/** Morpheus's MOR multiplier for locking the MOR claim from `start` to `end` (unix seconds): its
+ * LockMultiplierMath curve (tanh, 25 Jul 2024 – 26 Jan 2040, ×1 to ×10.7). It rewards locking the claim, not the stake. */
+export function morClaimLockMultiplier(start: number, end: number) {
+  const s0 = 1721908800;
+  const e0 = 2211192000;
+  const d = e0 - s0;
+  const a = Math.max(start, s0);
+  const b = Math.min(end, e0);
+  if (a >= b) return 1;
+  const m = 16.61327546 * (Math.tanh((2 * (b - s0)) / d) - Math.tanh((2 * (a - s0)) / d));
+  return Math.min(10.7, Math.max(1, m));
+}

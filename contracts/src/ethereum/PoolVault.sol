@@ -367,9 +367,11 @@ contract PoolVault is IPoolTypes, Initializable, ReentrancyGuardTransient {
     }
 
     /// @notice Triggers a MOR claim for one account. `msg.value` pays LayerZero; the refund goes to the caller.
+    /// @dev Also after the account left Morpheus (pre-fetch, emergency exit): Morpheus still pays MOR earned up to
+    /// then, and with MOR boost the claim only unlocks after the pre-fetch. MOR always goes to the pool's splitter.
     function claimMor(uint256 sleeveId, uint256 epochId, uint256 lockOptionId) external payable nonReentrant notAllPaused {
         address account = _accountOf[_key(sleeveId, epochId, lockOptionId)];
-        if (account == address(0) || !accountInfo[account].inMorpheus) revert NotInMorpheus();
+        if (account == address(0)) revert NotInMorpheus();
         CapitalAccount(payable(account)).claim{value: msg.value}(msg.sender);
         emit MorClaimTriggered(account, msg.sender);
     }

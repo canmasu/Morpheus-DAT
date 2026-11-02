@@ -426,6 +426,30 @@ contract PoolVaultTest is Base {
 
     // ------------------------------------------------------------ MOR claims
 
+    /// @dev MOR earned before the pre-fetch must stay claimable afterwards (with MOR boost it only unlocks then).
+    function test_claimMorAfterPrefetch() public {
+        PoolVault boosted = createExamplePool(true);
+        vm.warp(boosted.depositStart());
+        usdc.mint(alice, 10_000e6);
+        vm.startPrank(alice);
+        usdc.approve(address(boosted), 10_000e6);
+        uint256 id = boosted.stake(0, 0, 10_000e6, 0);
+        vm.stopPrank();
+        address acct = boosted.position(id).account;
+        (, uint256 earliestUnlock, uint256 prefetchAt) = boosted.accountTimes(acct);
+
+        vm.warp(prefetchAt);
+        boosted.prefetch(acct);
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        vm.expectRevert(); // Morpheus: boost lock still running
+        boosted.claimMor{value: 0.01 ether}(0, 0, 0);
+
+        vm.warp(earliestUnlock + 1);
+        vm.prank(bob);
+        boosted.claimMor{value: 0.01 ether}(0, 0, 0); // after pre-fetch, still claimable
+    }
+
     function test_claimMorRefundsCaller() public {
         stakeUsdc(vault, alice, 10_000e6, 0);
         vm.warp(block.timestamp + 15 days);

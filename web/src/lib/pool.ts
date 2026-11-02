@@ -2,13 +2,15 @@ import { type Address, formatUnits, isAddress, parseUnits } from 'viem';
 import type { NetworkConfig, StakeAsset } from '@/config/networks';
 
 export const YEAR = 365n * 86400n;
+/** Internal rate unit: rates are stored per this many stake tokens. */
+export const RATE_UNIT_TOKENS = '1000000';
 export const PREFETCH_WINDOW_DAYS = 30;
 
 export type LockRow = { months: string; mult: string };
 export type SleeveForm = {
   enabled: boolean;
-  unitAmount: string;
-  rate: string;
+  /** Reward tokens one stake token earns per year at 1x, e.g. '0.001'. */
+  perToken: string;
   cap: string;
   minPerWallet: string;
   maxPerWallet: string;
@@ -47,12 +49,14 @@ export type PoolConfig = {
   morBoost: boolean;
 };
 
+/** Base rates are at 1x: multipliers are entered exactly as contributors see them (Alpha $100 = 1x, Omega 12
+ * months = 20x). 1,000 per $1M at 1x = the proposal's 20,000 per $1M at Omega 12 months. */
 const SLEEVE_DEFAULTS: Record<string, Partial<SleeveForm>> = {
-  USDC: { unitAmount: '1000000', rate: '20000', cap: '10000000', minPerWallet: '1000', maxPerWallet: '5000000' },
-  USDT: { unitAmount: '1000000', rate: '20000', cap: '10000000', minPerWallet: '1000', maxPerWallet: '5000000' },
-  stETH: { unitAmount: '500', rate: '10000', cap: '5000', minPerWallet: '1', maxPerWallet: '' },
-  stETHMock: { unitAmount: '500', rate: '10000', cap: '5000', minPerWallet: '0.01', maxPerWallet: '' },
-  LINK: { unitAmount: '10000', rate: '1000', cap: '1000000', minPerWallet: '10', maxPerWallet: '' },
+  USDC: { perToken: '0.001', cap: '10000000', minPerWallet: '1000000', maxPerWallet: '10000000' },
+  USDT: { perToken: '0.001', cap: '10000000', minPerWallet: '1000000', maxPerWallet: '10000000' },
+  stETH: { perToken: '1', cap: '10000', minPerWallet: '1000', maxPerWallet: '10000' },
+  stETHMock: { perToken: '1', cap: '10000', minPerWallet: '1000', maxPerWallet: '10000' },
+  LINK: { perToken: '0.001', cap: '10000000', minPerWallet: '1000000', maxPerWallet: '10000000' },
 };
 
 const toLocalInput = (d: Date) => {
@@ -65,25 +69,24 @@ export function defaultForm(net: NetworkConfig, nowMs = Date.now()): PoolForm {
   return {
     rewardToken: '',
     locks: [
-      { months: '12', mult: '1.00' },
-      { months: '24', mult: '1.10' },
-      { months: '36', mult: '1.25' },
-      { months: '48', mult: '1.50' },
-      { months: '60', mult: '2.50' },
+      { months: '12', mult: '20' },
+      { months: '24', mult: '22' },
+      { months: '36', mult: '25' },
+      { months: '48', mult: '30' },
+      { months: '60', mult: '50' },
     ],
     sleeves: Object.fromEntries(
       net.stakeAssets.map((a, i) => [
         a.symbol,
         {
           enabled: i === 0,
-          unitAmount: '1000',
-          rate: '1000',
+          perToken: '0.001',
           cap: '1000000',
           minPerWallet: '1',
           maxPerWallet: '',
           fixedEnabled: false,
           fixedAmounts: '100, 1000, 10000, 100000',
-          fixedMult: '0.05, 0.10, 0.15, 0.25',
+          fixedMult: '1, 2, 3, 5',
           fixedLock: 0,
           fixedMax: '',
           ...SLEEVE_DEFAULTS[a.symbol],
@@ -93,7 +96,8 @@ export function defaultForm(net: NetworkConfig, nowMs = Date.now()): PoolForm {
     start: toLocalInput(new Date(now + 15 * 60_000)),
     end: toLocalInput(new Date(now + 180 * 86400_000)),
     epochDays: '30',
-    morBoost: true,
+    // Off by default: boost locks MOR until unlock (12 – 60 months) and cannot be undone.
+    morBoost: false,
     budget: '',
   };
 }
@@ -103,9 +107,10 @@ export function defaultForm(net: NetworkConfig, nowMs = Date.now()): PoolForm {
  * stands in for USDC, so it is 1:1. */
 const USD_PER_TOKEN: Record<string, number> = { USDC: 1, USDT: 1, LINK: 1, stETH: 1000, stETHMock: 1000 };
 
-/** The example pool from the proposal, applied to every stake asset on the network: Omega ($1M – $10M per wallet,
- * 1.00x – 2.50x by lock) and Alpha (from $100: brackets $100 / $1k / $10k / $100k at 0.05x / 0.10x / 0.15x /
- * 0.25x, 12 months, up to just under $1M). Non-USD assets are scaled by USD_PER_TOKEN. */
+/** The example pool from the proposal, applied to every stake asset on the network, with the base rate at 1x:
+ * Alpha (from $100: brackets $100 / $1k / $10k / $100k at 1x / 2x / 3x / 5x, 12 months, up to just under $1M)
+ * and Omega ($1M – $10M per wallet, 20x / 22x / 25x / 30x / 50x by lock). Non-USD assets are scaled by
+ * USD_PER_TOKEN. */
 export function applyExamplePool(form: PoolForm, net: NetworkConfig): PoolForm {
   const sleeves = { ...form.sleeves };
   for (const a of net.stakeAssets) {
@@ -116,15 +121,14 @@ export function applyExamplePool(form: PoolForm, net: NetworkConfig): PoolForm {
     sleeves[a.symbol] = {
       ...sleeves[a.symbol],
       enabled: true,
-      // Same reward per USD: per $1M for USD assets, per 500 stETH (= $500k) for stETH
-      unitAmount: f === 1 ? '1000000' : '500',
-      rate: f === 1 ? '20000' : String(20000 * (500 * f) / 1_000_000),
+      // At 1x, $1 earns 0.001 per year (= 1,000 per $1M); 1 stETH (= $1,000) earns 1
+      perToken: String(0.001 * f),
       cap: t(100_000_000),
       minPerWallet: t(1_000_000),
       maxPerWallet: t(10_000_000),
       fixedEnabled: true,
       fixedAmounts: [100, 1_000, 10_000, 100_000].map(t).join(', '),
-      fixedMult: '0.05, 0.10, 0.15, 0.25',
+      fixedMult: '1, 2, 3, 5',
       fixedLock: 0,
       fixedMax: justBelow(1_000_000),
     };
@@ -132,22 +136,23 @@ export function applyExamplePool(form: PoolForm, net: NetworkConfig): PoolForm {
   return {
     ...form,
     epochDays: '30',
+    morBoost: false,
     locks: [
-      { months: '12', mult: '1.00' },
-      { months: '24', mult: '1.10' },
-      { months: '36', mult: '1.25' },
-      { months: '48', mult: '1.50' },
-      { months: '60', mult: '2.50' },
+      { months: '12', mult: '20' },
+      { months: '24', mult: '22' },
+      { months: '36', mult: '25' },
+      { months: '48', mult: '30' },
+      { months: '60', mult: '50' },
     ],
     sleeves,
   };
 }
 
-/** Multipliers are shown relative to the pool's lowest one (e.g. Alpha $100 = 1x, Omega 12 months = 20x).
- * Contracts keep the real values. */
+/** New pools store multipliers exactly as shown (base rate at 1x), so this is 1x. Older pools that used
+ * fractions below 1x (e.g. Alpha 0.05x) are shown relative to their lowest multiplier instead. */
 export function baseMultBps(locks: { multBps: number }[], tiers: { kind: number; multBps: readonly number[] }[]) {
   const all = [...locks.map((l) => l.multBps), ...tiers.filter((t) => t.kind !== 0).flatMap((t) => [...t.multBps])];
-  return Math.max(1, Math.min(...all));
+  return Math.max(1, Math.min(10_000, ...all));
 }
 
 export const fmtMult = (bps: number, base: number) => {
@@ -213,12 +218,13 @@ export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: 
   const sleeves = enabled.map((a: StakeAsset) => {
     const f = form.sleeves[a.symbol];
     const p = `${a.symbol}`;
-    const unit = num(f.unitAmount, `${p} rate unit`, errors, a.decimals);
-    const ratePerUnit = num(f.rate, `${p} rate`, errors, rDec);
+    // Stored per 1,000,000 tokens so small per-token rates stay exact: rate(1M) = perToken × 10^(rDec + 6).
+    const unit = parseUnits(RATE_UNIT_TOKENS, a.decimals);
+    const ratePerUnit = num(f.perToken, `${p} reward per ${a.symbol}`, errors, rDec + 6);
     const cap = num(f.cap, `${p} cap`, errors, a.decimals);
     const minPerWallet = num(f.minPerWallet, `${p} min per stake`, errors, a.decimals, true);
     const maxPerWallet = num(f.maxPerWallet, `${p} max per wallet`, errors, a.decimals, true);
-    if (unit === 0n || ratePerUnit === 0n || cap === 0n) errors.push(`${p}: rate unit, rate and cap must be above 0`);
+    if (ratePerUnit === 0n || cap === 0n) errors.push(`${p}: reward per ${a.symbol} and pool cap must be above 0`);
     if (maxPerWallet !== 0n && maxPerWallet < minPerWallet) errors.push(`${p}: max per wallet is below min per stake`);
     const tiers = [{ kind: 0, minPerWallet, maxPerWallet, amounts: [] as bigint[], multBps: [] as number[], lockOptionId: 0 }];
     if (f.fixedEnabled) {
@@ -226,7 +232,7 @@ export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: 
         .split(/[,\s]+/)
         .filter(Boolean)
         .map((x, i) => num(x, `${p} Alpha bracket ${i + 1}`, errors, a.decimals));
-      // One multiplier for all amounts, or one per amount (e.g. Alpha: 0.05, 0.10, 0.15, 0.25).
+      // One multiplier for all amounts, or one per amount (e.g. Alpha: 1, 2, 3, 5).
       const ms = f.fixedMult.split(/[,\s]+/).filter(Boolean).map(multToBps);
       const multBps = ms.length === 1 ? amounts.map(() => ms[0]) : ms;
       if (amounts.length === 0) errors.push(`${p}: Alpha needs at least one bracket`);

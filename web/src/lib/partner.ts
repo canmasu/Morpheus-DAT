@@ -21,10 +21,10 @@ export async function tokenInfo(net: NetworkConfig, token: Address, owner?: Addr
   return { symbol, decimals, balance, allowance };
 }
 
-/** Testnet only: a mintable "Test EXM" with 42,000,000 minted to the Partner. */
-export async function createTestToken(net: NetworkConfig, partner: Address) {
-  const { address } = await deploy(net.l1, partner, A.MockERC20, ['Test EXM', 'tEXM', 18]);
-  await write(net.l1, partner, address, A.MockERC20.abi as Abi, 'mint', [partner, parseUnits('42000000', 18)]);
+/** Testnet only: a mintable test token named by the tester, with `supply` minted to the Partner. */
+export async function createTestToken(net: NetworkConfig, partner: Address, name: string, symbol: string, supply: string) {
+  const { address } = await deploy(net.l1, partner, A.MockERC20, [name, symbol, 18], `Deploy ${symbol}`);
+  await write(net.l1, partner, address, A.MockERC20.abi as Abi, 'mint', [partner, parseUnits(supply.replace(/[,_\s]/g, ''), 18)]);
   return address;
 }
 

@@ -171,6 +171,7 @@ export async function mintTestToken(net: NetworkConfig, me: Address, asset: Stak
 export type MyPosition = {
   vault: Address;
   id: bigint;
+  rewardToken: Address;
   rewardSymbol: string;
   rewardDecimals: number;
   asset: StakeAsset;
@@ -208,6 +209,7 @@ export async function myPositions(net: NetworkConfig, me: Address): Promise<MyPo
       out.push({
         vault,
         id,
+        rewardToken,
         rewardSymbol,
         rewardDecimals,
         asset,
@@ -228,3 +230,9 @@ export async function myPositions(net: NetworkConfig, me: Address): Promise<MyPo
 
 export const vaultWrite = (net: NetworkConfig, me: Address, vault: Address, fn: string, args: unknown[]) =>
   write(net.l1, me, vault, A.PoolVault.abi as Abi, fn, args);
+
+/** Readable amount for reward examples: the Omega (range tier) minimum if set, else the rate unit. */
+export function refAmount(s: Sleeve) {
+  const range = s.tiers.find((t) => t.kind === 0 && t.minPerWallet > 0n);
+  return range ? range.minPerWallet : s.unit;
+}

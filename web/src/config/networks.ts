@@ -61,14 +61,6 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
     },
     stakeAssets: [
       {
-        symbol: 'stETHMock',
-        token: a('0xa878Ad6FF38d6fAE81FBb048384cE91979d448DA'),
-        decimals: 18,
-        depositPool: a('0xFea33A23F97d785236F22693eDca564782ae98d0'),
-        poolIndex: 0,
-        faucet: 'open',
-      },
-      {
         symbol: 'LINK',
         token: a('0xf8Fb3713D459D7C1018BD0A49D19b4C44290EBE5'),
         decimals: 18,
@@ -76,6 +68,14 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
         poolIndex: 0,
         // Aave V3 Sepolia's LINK; Morpheus supplies it to Aave (the same path as USDC/USDT on mainnet).
         faucet: a('0xC959483DBa39aa9E78757139af0e9a2EDEb3f42D'),
+      },
+      {
+        symbol: 'stETHMock',
+        token: a('0xa878Ad6FF38d6fAE81FBb048384cE91979d448DA'),
+        decimals: 18,
+        depositPool: a('0xFea33A23F97d785236F22693eDca564782ae98d0'),
+        poolIndex: 0,
+        faucet: 'open',
       },
     ],
     mor: a('0x34a285A1B1C166420Df5b6630132542923B5b27E'),

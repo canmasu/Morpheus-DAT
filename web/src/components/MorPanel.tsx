@@ -93,8 +93,8 @@ export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Ad
                     </a>
                   </div>
                   <div className="text-slate-500">
-                    {!a.inMorpheus
-                      ? 'Pulled out of Morpheus: no more MOR'
+                    {!a.inMorpheus && !locked
+                      ? 'Moved out of Morpheus: no new MOR, but the MOR earned until then can still be claimed'
                       : locked
                         ? boosted
                           ? `MOR boost: claim locked until ${fmtDate(a.boostedUntil)} (${countdown(a.claimableAt, Number(now))})`
@@ -104,7 +104,7 @@ export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Ad
                 </div>
                 <button
                   className="btn-ghost"
-                  disabled={!!busy || !address || !a.inMorpheus || locked || fee === undefined}
+                  disabled={!!busy || !address || locked || fee === undefined}
                   onClick={() =>
                     act(a.account, () => claimMor(net, address!, vault, a, fee!), `Claim sent. MOR reaches the splitter on ${net.l2.name} in a few minutes.`)
                   }

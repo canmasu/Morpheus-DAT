@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
+import { AddToWallet } from '@/components/AddToWallet';
 import { myPositions, vaultWrite, type MyPosition } from '@/lib/vault';
 import { errorText } from '@/lib/tx';
 import { countdown, fmt, fmtDate } from '@/lib/format';
@@ -80,9 +81,12 @@ export default function Dashboard() {
                 <div className="font-medium text-white">
                   {fmt(p.amount, p.asset.decimals)} {p.asset.symbol} → {fmt(p.reward, p.rewardDecimals)} {p.rewardSymbol}
                 </div>
-                <Link href={`/pool/?v=${p.vault}`} className="mono text-slate-500 hover:underline">
-                  pool {p.vault} · #{p.id.toString()}
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link href={`/pool/?v=${p.vault}`} className="mono text-slate-500 hover:underline">
+                    pool {p.vault} · #{p.id.toString()}
+                  </Link>
+                  <AddToWallet chain={net.l1} token={p.rewardToken} symbol={p.rewardSymbol} decimals={p.rewardDecimals} />
+                </div>
               </div>
               <span className={`rounded px-2 py-0.5 text-xs ${p.status === 1 ? 'bg-amber-500/15 text-amber-300' : 'bg-mor/15 text-mor'}`}>
                 {STATUS[p.status]}

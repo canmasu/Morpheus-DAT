@@ -27,7 +27,8 @@ async function main() {
   await rpc('anvil_impersonateAccount', [me]);
   await rpc('anvil_setBalance', [me, '0x56BC75E2D63100000']);
   const old = { address: testnet.ethereum.poolFactory as Address, abi: A.PoolFactory.abi } as const;
-  const factory = await dep(A.PoolFactory, [{
+  // FRESH_FACTORY=1 deploys the current build; otherwise the committed testnet factory is used.
+  const factory = !process.env.FRESH_FACTORY ? (testnet.ethereum.poolFactory as Address) : await dep(A.PoolFactory, [{
     admin: me, poolVaultImpl: await dep(A.PoolVault, []),
     capitalAccountImpl: await l1.readContract({ ...old, functionName: 'capitalAccountImpl' }),
     adapter: testnet.ethereum.adapter, exitAdapter: testnet.ethereum.exitAdapter,
@@ -35,6 +36,7 @@ async function main() {
     feeWallet: me, referralAddress: me, feeBps: 1000,
     stakeTokens: net.stakeAssets.map((a) => a.token), depositPools: net.stakeAssets.map((a) => a.depositPool),
   }]);
+  console.log('factory', factory);
   const tleo = await dep(A.MockERC20, ['Test EXM', 'tEXM', 18]);
   await send(tleo, A.MockERC20.abi as Abi, 'mint', [me, parseUnits('42000000', 18)]);
 

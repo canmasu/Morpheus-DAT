@@ -94,6 +94,13 @@ const LABELS: Record<string, string> = {
   mint: 'Mint test tokens',
 };
 
+/** Asks the connected wallet to show `token` (switching to its chain first). Returns false if the user declined. */
+export async function addTokenToWallet(chain: Chain, account: Address, token: Address, symbol: string, decimals: number) {
+  const wallet = await walletOn(chain, account);
+  // Wallets limit symbols to 11 characters.
+  return wallet.watchAsset({ type: 'ERC20', options: { address: token, symbol: symbol.slice(0, 11), decimals } });
+}
+
 export function errorText(e: unknown) {
   const err = e as { shortMessage?: string; message?: string };
   return (err.shortMessage ?? err.message ?? String(e)).split('\n').slice(0, 3).join(' ');

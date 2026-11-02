@@ -271,6 +271,50 @@ contract MorpheusForkTest is Test, IPoolTypes {
         assertEq(exampleToken.balanceOf(alice), 300e18);
     }
 
+    /// @notice Live Morpheus pays MOR earned before the pre-fetch even after the account withdrew everything.
+    function test_fork_claimMorAfterPrefetch() public {
+        vm.skip(noRpc);
+        _freezePrices();
+        uint256 id = _stakeUsdc(100_000e6);
+        address acct = vault.position(id).account;
+        (,, uint256 prefetchAt) = vault.accountTimes(acct);
+        vm.warp(prefetchAt);
+        vault.prefetch(acct);
+        assertEq(adapter.deposited(USDC_POOL, acct), 0, "fully out of Morpheus");
+        vm.deal(keeper, 1 ether);
+        vm.recordLogs();
+        vm.prank(keeper);
+        vault.claimMor{value: 0.05 ether}(0, 0, 0);
+        console2.log("MOR claim after pre-fetch: ok, LayerZero fee", 1 ether - keeper.balance);
+    }
+
+    /// @notice Morpheus's MOR claim lock (the "power factor" boost) locks only the MOR claim: the staked USDC can
+    /// still be withdrawn after the 7-day withdraw lock.
+    function test_fork_claimLockDoesNotLockTheStake() public {
+        vm.skip(noRpc);
+        _freezePrices();
+        address user = makeAddr("morpheusUser");
+        deal(USDC, user, 1_000e6);
+        vm.startPrank(user);
+        IERC20(USDC).approve(DISTRIBUTOR, 1_000e6);
+        IDepositPool(USDC_POOL).stake(0, 1_000e6, uint128(block.timestamp + 10 * 365 days), address(0));
+        vm.stopPrank();
+        (,,,,, uint128 claimLockEnd,,,) = IDepositPool(USDC_POOL).usersData(user, 0);
+        console2.log("MOR claim locked for (days)", (claimLockEnd - block.timestamp) / 1 days);
+
+        vm.warp(block.timestamp + 8 days);
+        vm.prank(user);
+        IDepositPool(USDC_POOL).withdraw(0, 1_000e6);
+        console2.log("USDC withdrawn after 8 days", IERC20(USDC).balanceOf(user));
+        assertApproxEqAbs(IERC20(USDC).balanceOf(user), 1_000e6, 2);
+
+        // Past Morpheus's 14-day claim lock, the MOR itself is still locked by the 10-year claim lock.
+        vm.warp(block.timestamp + 7 days);
+        vm.prank(user);
+        vm.expectRevert(bytes("DS: user claim is locked"));
+        IDepositPool(USDC_POOL).claim(0, user);
+    }
+
     /// @notice Hostile drill: Morpheus raises its locks. New stakes stop; existing principal still exits.
     function test_fork_drill_lockChangeTripsBreaker() public {
         vm.skip(noRpc);

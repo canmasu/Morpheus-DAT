@@ -50,8 +50,7 @@ async function main() {
   form.rewardToken = tleo;
   form.sleeves.USDC.enabled = true;
   form.sleeves.USDT.enabled = true;
-  form.sleeves.USDT.unitAmount = '1000000';
-  form.sleeves.USDT.rate = '20000';
+  form.sleeves.USDT.perToken = '0.001'; // × 20x on 12 months = 200 tEXM per 10,000 USDT
   form.sleeves.USDT.cap = '10000000';
   form.sleeves.USDT.minPerWallet = '100';
   form.budget = '5000000';
