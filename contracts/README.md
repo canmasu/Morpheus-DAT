@@ -1,18 +1,18 @@
 # Morpheus DAT — contracts
 
-Foundry workspace for the DAT pool platform on Morpheus Capital. Spec: [`../docs/proposal.md`](../docs/proposal.md).
+Foundry workspace for the DAT pool platform on Morpheus Capital.
 
 ## Layout
 
 | Chain | Contract | License | Role |
 |---|---|---|---|
-| Ethereum | `PoolFactory` | BUSL-1.1 | creates pools; fee, referral, featured, pause, adapter timelock |
-| Ethereum | `PoolVault` | BUSL-1.1 | one clone per pool: sleeves (USDC, stETH), tiers, locks, reward reservation, exits |
+| Ethereum | `PoolFactory` | MIT | creates pools; fee, referral, featured, pause, adapter timelock |
+| Ethereum | `PoolVault` | MIT | one clone per pool: sleeves (USDC, stETH), tiers, locks, reward reservation, exits |
 | Ethereum | `CapitalAccount` | MIT | one Morpheus depositor per (sleeve × 30-day epoch × lock option) |
 | Ethereum | `MorpheusAdapter` / `ExitOnlyAdapter` | MIT | encodes Morpheus calls, circuit-breaker baseline |
-| Ethereum | `OTCMarket` | BUSL-1.1 | fixed-price escrow listings, partial fills, optional KYC / private taker |
-| Arbitrum | `ArbFeeConfig` | BUSL-1.1 | DAT fee (20% cap, 48h timelock) and fee wallet |
-| Arbitrum | `MorSplitter` + `SplitterDeployer` | BUSL-1.1 | per-pool MOR receiver at a CREATE2 address predicted on Ethereum |
+| Ethereum | `OTCMarket` | MIT | fixed-price escrow listings, partial fills, optional KYC / private taker |
+| Arbitrum | `ArbFeeConfig` | MIT | DAT fee (20% cap, 48h timelock) and fee wallet |
+| Arbitrum | `MorSplitter` + `SplitterDeployer` | MIT | per-pool MOR receiver at a CREATE2 address predicted on Ethereum |
 
 ## Commands
 
@@ -48,5 +48,4 @@ Also found: Morpheus `stake` and `withdraw` revert (`DR: price for pair is zero`
 
 - Deploy scripts (`script/`) writing `deployments/<network>.json`, and the Sepolia setup
 - `RewardVault` for remote reward chains (v1.1)
-- BUSL-1.1 license text (licensor, change date, Additional Use Grant), pending legal review
 - Invariant test harness (handler-based), plus an upgrade drill that swaps in a Morpheus implementation with renamed functions

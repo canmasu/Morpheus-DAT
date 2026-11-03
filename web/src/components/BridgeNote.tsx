@@ -6,7 +6,7 @@ import { useNetwork } from './Providers';
 import { bridgeInfo, type BridgeInfo } from '@/lib/bridge';
 import { useI18n } from '@/i18n/I18nProvider';
 
-/** Shown on pools whose OG Token came through the bridge kit. The settings are read live from the chains. */
+/** Shown on pools whose Alpha Coin came through the bridge kit. The settings are read live from the chains. */
 export function BridgeNote({ token, onBase, className = '' }: { token: Address; onBase: boolean; className?: string }) {
   const { net } = useNetwork();
   const { t } = useI18n();

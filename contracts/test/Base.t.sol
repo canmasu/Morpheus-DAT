@@ -13,7 +13,7 @@ import {SplitterDeployer} from "../src/arbitrum/SplitterDeployer.sol";
 import {ArbFeeConfig} from "../src/arbitrum/ArbFeeConfig.sol";
 import {MockERC20, MockStETH, MockDepositPool} from "./mocks/Mocks.sol";
 
-/// @dev Full DAT system on mocks, with the example pool from docs/proposal.md.
+/// @dev Full DAT system on mocks, with an example example pool.
 abstract contract Base is Test, IPoolTypes {
     address admin = makeAddr("multisig");
     address guardian = makeAddr("guardian");

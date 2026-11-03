@@ -24,3 +24,34 @@ export function viemChain(c: LzChain): Chain {
     ...(c.explorer ? { blockExplorers: { default: { name: 'Explorer', url: c.explorer } } } : {}),
   });
 }
+
+/** Base's own L1StandardBridge on Sepolia. ETH sent here arrives at the sender's address on Base Sepolia. */
+export const BASE_SEPOLIA_BRIDGE = '0xfd0Bf71F60660E2f608ed56e1659C450eB113120';
+
+/** Where to get gas on each testnet, by chain key in lzChains.ts. Official faucets first. */
+export const TESTNET_FAUCETS: Record<string, { label: string; url: string }[]> = {
+  'sepolia-testnet': [
+    { label: 'Google', url: 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia' },
+    { label: 'Alchemy', url: 'https://www.alchemy.com/faucets/ethereum-sepolia' },
+  ],
+  'base-sepolia': [
+    { label: 'Google', url: 'https://cloud.google.com/application/web3/faucet/ethereum/base-sepolia' },
+    { label: 'Alchemy', url: 'https://www.alchemy.com/faucets/base-sepolia' },
+  ],
+  'bsc-testnet': [{ label: 'BNB Chain', url: 'https://www.bnbchain.org/en/testnet-faucet' }],
+  'arbitrum-sepolia': [{ label: 'Alchemy', url: 'https://www.alchemy.com/faucets/arbitrum-sepolia' }],
+  'optimism-sepolia': [
+    { label: 'Superchain', url: 'https://console.optimism.io/faucet' },
+    { label: 'Alchemy', url: 'https://www.alchemy.com/faucets/optimism-sepolia' },
+  ],
+  'amoy-testnet': [
+    { label: 'Polygon', url: 'https://faucet.polygon.technology/' },
+    { label: 'Alchemy', url: 'https://www.alchemy.com/faucets/polygon-amoy' },
+  ],
+  'monad-testnet': [{ label: 'Alchemy', url: 'https://www.alchemy.com/faucets/monad-testnet' }],
+  'robinhood-testnet': [
+    { label: 'Robinhood', url: 'https://faucet.testnet.chain.robinhood.com/' },
+    { label: 'Alchemy', url: 'https://www.alchemy.com/faucets/robinhood-testnet' },
+  ],
+  'arc-testnet': [{ label: 'Circle', url: 'https://faucet.circle.com/' }],
+};

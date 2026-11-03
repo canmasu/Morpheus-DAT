@@ -3,11 +3,11 @@
 import { useI18n } from '@/i18n/I18nProvider';
 
 /** Outline clip art for the landing page: stake USDC → locked for x months → unstake: USDC back + a crowned
- * OG Token. Transparent background; strokes follow the text colour, the reward follows the accent. */
+ * Alpha Coin. Transparent background; strokes follow the text colour, the reward follows the accent. */
 export function StakeIllustration({ className = '' }: { className?: string }) {
   const { t } = useI18n();
   const ink = 'currentColor';
-  const accent = '#20dc8e';
+  const accent = 'rgb(var(--c-mor))';
   const stroke = { fill: 'none', strokeWidth: 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 
   const usdc = (cx: number, cy: number, r: number) => (
@@ -65,7 +65,7 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
 
       {arrow(372, 470, 105, t('ill.unstake'))}
 
-      {/* 3 · USDC back + OG Token (crown in the middle of the coin) */}
+      {/* 3 · USDC back + Alpha Coin (crown in the middle of the coin) */}
       {usdc(520, 108, 38)}
       <text x={588} y={118} textAnchor="middle" fontSize="30" fontWeight="600" fill={ink}>
         +

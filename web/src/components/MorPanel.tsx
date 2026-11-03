@@ -9,12 +9,14 @@ import { explorerAddress } from '@/config/networks';
 import { accountsMor, claimMor, distributeMor, morBalances, quoteMorClaimFee, sandboxSendMor, type AccountMor } from '@/lib/mor';
 import { errorText } from '@/lib/tx';
 import { countdown, fmt, fmtDate, short } from '@/lib/format';
+import { useI18n } from '@/i18n/I18nProvider';
 
 /** MOR for one pool: claim from Morpheus per Capital Account (Ethereum), then split on Arbitrum. */
 export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Address; splitter: Address; partner: Address; splitterLive: boolean }) {
   const { net } = useNetwork();
   const { address } = useAccount();
   const now = BigInt(useChainNow(net));
+  const { t } = useI18n();
   const [accounts, setAccounts] = useState<AccountMor[]>();
   const [fee, setFee] = useState<bigint>();
   const [feeError, setFeeError] = useState<string>();
@@ -63,22 +65,20 @@ export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Ad
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium text-white">MOR</h3>
         <span className="text-xs text-slate-500">
-          1 · claim from Morpheus on {net.l1.name} → 2 · LayerZero mints to the splitter on {net.l2.name} → 3 · distribute
+          {t('mor.steps', { l1: net.l1.name, l2: net.l2.name })}
         </span>
       </div>
 
       {feeError && (
         <p className="rounded-lg bg-amber-500/10 p-3 text-xs text-amber-300">
-          {net.name === 'testnet'
-            ? "Morpheus's Sepolia deployment cannot send MOR right now: its LayerZero settings are empty, so every MOR claim reverts (InvalidWorkerOptions). Only the Morpheus team can fix it. On mainnet this path works."
-            : 'Could not quote the LayerZero fee from Morpheus. MOR claims may fail until this is resolved.'}
+          {net.name === 'testnet' ? t('mor.feeTestnet') : t('mor.feeMain')}
         </p>
       )}
 
       <div>
-        <h4 className="label">1 · Claim per Capital Account</h4>
-        {!accounts && <p className="text-xs text-slate-500">Loading…</p>}
-        {accounts?.length === 0 && <p className="text-xs text-slate-500">No stakes yet, so nothing earns MOR.</p>}
+        <h4 className="label">{t('mor.claimTitle')}</h4>
+        {!accounts && <p className="text-xs text-slate-500">{t('common.loading')}</p>}
+        {accounts?.length === 0 && <p className="text-xs text-slate-500">{t('mor.noStakes')}</p>}
         <ul className="divide-y divide-ink-line">
           {accounts?.map((a) => {
             const locked = now < a.claimableAt;
@@ -87,29 +87,29 @@ export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Ad
               <li key={a.account} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs">
                 <div className="space-y-0.5">
                   <div className="text-slate-300">
-                    {a.symbol} · epoch {a.epochId} · lock #{a.lockOptionId} · {fmt(a.deposited, a.decimals)} in Morpheus{' '}
+                    {t('mor.account', { sym: a.symbol, epoch: a.epochId, lock: a.lockOptionId, amount: fmt(a.deposited, a.decimals) })}{' '}
                     <a className="mono text-slate-500 hover:underline" href={explorerAddress(net.l1, a.account)} target="_blank" rel="noreferrer">
                       {short(a.account)}
                     </a>
                   </div>
                   <div className="text-slate-500">
                     {!a.inMorpheus && !locked
-                      ? 'Moved out of Morpheus: no new MOR, but the MOR earned until then can still be claimed'
+                      ? t('mor.movedOut')
                       : locked
                         ? boosted
-                          ? `MOR boost: claim locked until ${fmtDate(a.boostedUntil)} (${countdown(a.claimableAt, Number(now))})`
-                          : `Morpheus claim lock: claimable in ${countdown(a.claimableAt, Number(now))}`
-                        : `Claimable now${a.pending > 0n ? ` · about ${fmt(a.pending, 18)} MOR pending` : ''}`}
+                          ? t('mor.boost', { date: fmtDate(a.boostedUntil), left: countdown(a.claimableAt, Number(now)) })
+                          : t('mor.lock', { left: countdown(a.claimableAt, Number(now)) })
+                        : `${t('mor.claimable')}${a.pending > 0n ? t('mor.pending', { amount: fmt(a.pending, 18) }) : ''}`}
                   </div>
                 </div>
                 <button
                   className="btn-ghost"
                   disabled={!!busy || !address || locked || fee === undefined}
                   onClick={() =>
-                    act(a.account, () => claimMor(net, address!, vault, a, fee!), `Claim sent. MOR reaches the splitter on ${net.l2.name} in a few minutes.`)
+                    act(a.account, () => claimMor(net, address!, vault, a, fee!), t('mor.claimSent', { chain: net.l2.name }))
                   }
                 >
-                  {busy === a.account ? 'Confirm in wallet…' : `Claim MOR${fee !== undefined ? ` (fee ~${fmt(fee, 18, 5)} ETH)` : ''}`}
+                  {busy === a.account ? t('dash.confirm') : fee !== undefined ? t('mor.claimFee', { fee: fmt(fee, 18, 5) }) : t('mor.claim')}
                 </button>
               </li>
             );
@@ -118,17 +118,17 @@ export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Ad
       </div>
 
       <div>
-        <h4 className="label">2–3 · Splitter on {net.l2.name}</h4>
+        <h4 className="label">{t('mor.splitterTitle', { chain: net.l2.name })}</h4>
         {!splitterLive ? (
-          <p className="text-xs text-red-400">Splitter not deployed yet.</p>
+          <p className="text-xs text-red-400">{t('mor.noSplitter')}</p>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="space-y-0.5 text-slate-300">
               <div>
-                Waiting in splitter: <span className="text-white">{bal ? fmt(bal.inSplitter, 18) : '…'} MOR</span>
+                {t('mor.waitingSplitter')} <span className="text-white">{bal ? fmt(bal.inSplitter, 18) : '…'} MOR</span>
               </div>
               <div className="text-slate-500">
-                Partner {short(partner)} holds {bal ? fmt(bal.partnerMor, 18) : '…'} MOR on {net.l2.name}
+                {t('mor.partnerHolds', { addr: short(partner), amount: bal ? fmt(bal.partnerMor, 18) : '…', chain: net.l2.name })}
               </div>
             </div>
             <div className="flex gap-2">
@@ -136,17 +136,17 @@ export function MorPanel({ vault, splitter, partner, splitterLive }: { vault: Ad
                 <button
                   className="btn-ghost"
                   disabled={!!busy || !address}
-                  onClick={() => act('sim', () => sandboxSendMor(net, address!, splitter, parseUnits('100', 18)), 'Sandbox: 100 MOR arrived at the splitter.')}
+                  onClick={() => act('sim', () => sandboxSendMor(net, address!, splitter, parseUnits('100', 18)), t('mor.sandboxDone'))}
                 >
-                  Sandbox: simulate 100 MOR arriving
+                  {t('mor.sandbox')}
                 </button>
               )}
               <button
                 className="btn-primary"
                 disabled={!!busy || !address || !bal || bal.inSplitter === 0n}
-                onClick={() => act('dist', () => distributeMor(net, address!, splitter), 'Distributed: Partner and DAT fee wallet paid.')}
+                onClick={() => act('dist', () => distributeMor(net, address!, splitter), t('mor.distributed'))}
               >
-                {busy === 'dist' ? 'Confirm in wallet…' : 'Distribute to Partner + DAT fee'}
+                {busy === 'dist' ? t('dash.confirm') : t('mor.distribute')}
               </button>
             </div>
           </div>

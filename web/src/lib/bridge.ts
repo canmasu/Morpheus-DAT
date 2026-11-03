@@ -20,7 +20,7 @@ export const sendParam = (dstEid: number, to: Address, amount: bigint) => ({
   oftCmd: '0x' as const,
 });
 
-/** What a Farmer sees about a bridged OG Token, read live from the chains. */
+/** What a Farmer sees about a bridged Alpha Coin, read live from the chains. */
 export type BridgeInfo = {
   /** The chain this copy of the token is on: Base for MOR pools, Ethereum for the others. */
   here: LzChain;

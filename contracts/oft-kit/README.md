@@ -1,4 +1,4 @@
-# OG Token bridge kit
+# Alpha Coin bridge kit (formerly OG Token)
 
 Lets a Partner bring a token from another EVM chain to Base with LayerZero's standard OFT contracts, then fund a MOR pool
 with it. The Partner deploys and owns everything; DAT never holds the tokens or controls the bridge.

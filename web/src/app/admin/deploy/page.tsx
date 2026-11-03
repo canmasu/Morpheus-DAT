@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import type { Address } from 'viem';
 import { sepolia } from 'viem/chains';
+import { BASE_SEPOLIA_BRIDGE } from '@/config/bridge';
 import { deploy, errorText, publicClient, write } from '@/lib/tx';
 import { keccak256 } from 'viem';
 import * as Artifacts from '@/contracts/artifacts';
@@ -29,9 +30,6 @@ import {
 } from '@/lib/deployPlan';
 import { download, load, remove, save } from '@/lib/storage';
 import { short } from '@/lib/format';
-
-/** Base's own L1StandardBridge on Sepolia. ETH sent here arrives at the sender's address on Base Sepolia. */
-const BASE_SEPOLIA_BRIDGE = '0xfd0Bf71F60660E2f608ed56e1659C450eB113120';
 
 const storageKey = (n: NetworkName) => `dat-deploy-${n}`;
 

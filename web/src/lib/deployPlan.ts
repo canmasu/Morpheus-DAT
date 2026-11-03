@@ -204,7 +204,7 @@ function BASE_STEPS(): Step[] {
   ];
 }
 
-/** Ordered as in docs/proposal.md "Contract order": Arbitrum first, so Ethereum can predict splitters. */
+/** Arbitrum first, so Ethereum can predict splitters. */
 export const STEPS: Step[] = [
   {
     id: 'arbFeeConfig',

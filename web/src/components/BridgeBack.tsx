@@ -10,7 +10,7 @@ import { errorText } from '@/lib/tx';
 import { fmt } from '@/lib/format';
 import { useI18n } from '@/i18n/I18nProvider';
 
-/** Sends a Farmer's claimed OG Tokens to another chain of the bridge, at the same address. Calls the token's own
+/** Sends a Farmer's claimed Alpha Coins to another chain of the bridge, at the same address. Calls the token's own
  * contract; nothing passes through DAT. Renders nothing unless the token came through the bridge kit. */
 export function BridgeBack({ token, symbol, onBase, tick }: { token: Address; symbol: string; onBase: boolean; tick?: unknown }) {
   const { net } = useNetwork();

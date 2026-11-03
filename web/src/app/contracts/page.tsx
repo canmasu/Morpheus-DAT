@@ -6,6 +6,7 @@ import { useNetwork } from '@/components/Providers';
 import { explorerAddress } from '@/config/networks';
 import { STEPS, toDeploymentsJson, type DeployState } from '@/lib/deployPlan';
 import { load } from '@/lib/storage';
+import { useI18n } from '@/i18n/I18nProvider';
 import testnet from '@/deployments/testnet.json';
 import mainnet from '@/deployments/mainnet.json';
 
@@ -13,6 +14,7 @@ const COMMITTED: Record<string, Record<string, unknown>> = { testnet, mainnet };
 
 export default function ContractsPage() {
   const { net } = useNetwork();
+  const { t } = useI18n();
   const [local, setLocal] = useState<ReturnType<typeof toDeploymentsJson>>();
   useEffect(() => {
     const s = load<DeployState>(`dat-deploy-${net.name}`);
@@ -31,12 +33,12 @@ export default function ContractsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-white">Contracts</h1>
+        <h1 className="text-2xl font-semibold text-white">{t('nav.contracts')}</h1>
         <p className="text-sm text-slate-400">{net.label}</p>
-        {fromLocal && <p className="mt-2 text-xs text-amber-300">Showing this browser&apos;s deploy progress; not yet committed.</p>}
+        {fromLocal && <p className="mt-2 text-xs text-amber-300">{t('contracts.local')}</p>}
       </div>
-      <Table title={`Morpheus DAT · ${net.l1.name}`} chain={net.l1} rows={datRows('l1')} empty="Not deployed yet." />
-      <Table title={`Morpheus DAT · ${net.l2.name}`} chain={net.l2} rows={datRows('l2')} empty="Not deployed yet." />
+      <Table title={`Morpheus DAT · ${net.l1.name}`} chain={net.l1} rows={datRows('l1')} empty={t('contracts.notDeployed')} />
+      <Table title={`Morpheus DAT · ${net.l2.name}`} chain={net.l2} rows={datRows('l2')} empty={t('contracts.notDeployed')} />
       <Table
         title="Morpheus Capital"
         chain={net.l1}
@@ -52,15 +54,15 @@ export default function ContractsPage() {
       <Table title={`MOR · ${net.l2.name}`} chain={net.l2} rows={[['MOR', net.mor]]} />
       {net.builders && (
         <>
-          <Table title={`Morpheus DAT · ${net.builders.chain.name}`} chain={net.builders.chain} rows={datRows('base')} empty="Not deployed yet." />
+          <Table title={`Morpheus DAT · ${net.builders.chain.name}`} chain={net.builders.chain} rows={datRows('base')} empty={t('contracts.notDeployed')} />
           <Table
-            title={net.builders.simulated ? 'Morpheus Builders (our simulation of its code)' : 'Morpheus Builders'}
+            title={net.builders.simulated ? t('contracts.simulated') : 'Morpheus Builders'}
             chain={net.builders.chain}
             rows={net.builders.contract === zeroAddress ? [] : [
               ['BuildersV4', net.builders.contract],
               ['MOR', net.builders.mor],
             ]}
-            empty="Not deployed yet."
+            empty={t('contracts.notDeployed')}
           />
         </>
       )}

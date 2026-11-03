@@ -46,7 +46,7 @@ export const LZ_BASE: LzChain = {
 };
 export const LZ_BASE_SEPOLIA: LzChain = {
   "key": "base-sepolia",
-  "name": "Basesep",
+  "name": "Base Sepolia",
   "chainId": 84532,
   "eid": 40245,
   "endpoint": "0x6edce65403992e310a62460808c4b910d972f10f",
@@ -104,7 +104,7 @@ export const LZ_SEPOLIA: LzChain = {
   "executor": "0x718b92b5cb0a5552039b593faf724d182a881eda",
   "native": {
     "name": "SepoliaETH",
-    "symbol": "SEPOLIAETH",
+    "symbol": "ETH",
     "decimals": 18
   },
   "rpc": "https://sepolia.gateway.tenderly.co",
@@ -209,7 +209,7 @@ export const LZ_MAINNET_CHAINS: LzChain[] = [
     "executor": "0xcd3f213ad101472e1713c72b1697e727c803885b",
     "native": {
       "name": "MATIC",
-      "symbol": "MATIC",
+      "symbol": "POL",
       "decimals": 18
     },
     "rpc": "https://1rpc.io/matic",
@@ -426,30 +426,6 @@ export const LZ_MAINNET_CHAINS: LzChain[] = [
 ];
 export const LZ_TESTNET_CHAINS: LzChain[] = [
   {
-    "key": "sepolia-testnet",
-    "name": "Sepolia",
-    "chainId": 11155111,
-    "eid": 40161,
-    "endpoint": "0x6edce65403992e310a62460808c4b910d972f10f",
-    "sendLib": "0xcc1ae8cf5d3904cef3360a9532b477529b177cce",
-    "receiveLib": "0xdaf00f5ee2158dd58e0d3857851c432e34a3a851",
-    "executor": "0x718b92b5cb0a5552039b593faf724d182a881eda",
-    "native": {
-      "name": "SepoliaETH",
-      "symbol": "SEPOLIAETH",
-      "decimals": 18
-    },
-    "rpc": "https://sepolia.gateway.tenderly.co",
-    "explorer": "https://sepolia.etherscan.io",
-    "dvns": {
-      "layerzero-labs": "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193",
-      "nethermind": "0x68802e01d6321d5159208478f297d7007a7516ed",
-      "horizen-labs": "0x843139c725c2fb9814de6a12fb890d8dbf3e1698",
-      "google-cloud": "0x4f675c48fad936cb4c3ca07d7cbf421ceeae0c75",
-      "p2p": "0x9efba56c8598853e5b40fd9a66b54a6c163742d7"
-    }
-  },
-  {
     "key": "bsc-testnet",
     "name": "BNB Testnet",
     "chainId": 97,
@@ -471,6 +447,30 @@ export const LZ_TESTNET_CHAINS: LzChain[] = [
       "horizen-labs": "0x98a7ad52b970d9b350fdee17d3892bbe79d0132a",
       "google-cloud": "0x6f99ea3fc9206e2779249e15512d7248dab0b52e",
       "p2p": "0xd0a6fd2e542945d81d4ed82d8f4d25cc09c65f7f"
+    }
+  },
+  {
+    "key": "sepolia-testnet",
+    "name": "Sepolia",
+    "chainId": 11155111,
+    "eid": 40161,
+    "endpoint": "0x6edce65403992e310a62460808c4b910d972f10f",
+    "sendLib": "0xcc1ae8cf5d3904cef3360a9532b477529b177cce",
+    "receiveLib": "0xdaf00f5ee2158dd58e0d3857851c432e34a3a851",
+    "executor": "0x718b92b5cb0a5552039b593faf724d182a881eda",
+    "native": {
+      "name": "SepoliaETH",
+      "symbol": "ETH",
+      "decimals": 18
+    },
+    "rpc": "https://sepolia.gateway.tenderly.co",
+    "explorer": "https://sepolia.etherscan.io",
+    "dvns": {
+      "layerzero-labs": "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193",
+      "nethermind": "0x68802e01d6321d5159208478f297d7007a7516ed",
+      "horizen-labs": "0x843139c725c2fb9814de6a12fb890d8dbf3e1698",
+      "google-cloud": "0x4f675c48fad936cb4c3ca07d7cbf421ceeae0c75",
+      "p2p": "0x9efba56c8598853e5b40fd9a66b54a6c163742d7"
     }
   },
   {
@@ -528,7 +528,7 @@ export const LZ_TESTNET_CHAINS: LzChain[] = [
     "executor": "0x4cf1b3fa61465c2c907f82fc488b43223ba0cf93",
     "native": {
       "name": "MATIC",
-      "symbol": "MATIC",
+      "symbol": "POL",
       "decimals": 18
     },
     "rpc": "https://polygon-amoy-bor-rpc.publicnode.com",

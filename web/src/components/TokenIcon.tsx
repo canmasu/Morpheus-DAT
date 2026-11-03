@@ -22,8 +22,8 @@ export function TokenIcon({ symbol, size = 36, reward = false }: { symbol: strin
   return (
     <span
       aria-label={symbol}
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
-      style={{ width: size, height: size, background: k.bg, fontSize: size * 0.48 }}
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold"
+      style={{ width: size, height: size, background: k.bg, color: '#fff', fontSize: size * 0.48 }}
     >
       {k.mark}
     </span>

@@ -107,7 +107,7 @@ export function defaultForm(net: NetworkConfig, nowMs = Date.now()): PoolForm {
  * stands in for USDC, so it is 1:1. */
 const USD_PER_TOKEN: Record<string, number> = { USDC: 1, USDT: 1, LINK: 1, MOR: 1, stETH: 1000, stETHMock: 1000 };
 
-/** The example pool from the proposal, applied to every stake asset on the network, with the base rate at 1x:
+/** The example pool, applied to every stake asset on the network, with the base rate at 1x:
  * OG (from $100: brackets $100 / $1k / $10k / $100k at 1x / 2x / 3x / 5x, 12 months, up to just under $1M)
  * and Whale ($1M – $10M per wallet, 20x / 22x / 25x / 30x / 50x by lock). Non-USD assets are scaled by
  * USD_PER_TOKEN. */

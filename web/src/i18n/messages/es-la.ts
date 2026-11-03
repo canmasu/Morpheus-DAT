@@ -21,6 +21,6 @@ export const esLA: Messages = {
   'home.farmers.text':
     'Elige un pool, un monto y un bloqueo de 12 a 60 meses. Tu recompensa exacta se reserva en cuanto haces farming, y recuperas todo tu stake al desbloquear.',
   'home.kicker': 'Morpheus DAT · airdrops genuinos',
-  'home.title': 'Haz farming con tu stETH, stablecoins y MOR para ganar OG Tokens.',
-  'home.sub': 'Los OG Tokens llegan a los Farmers mediante un airdrop genuino: se ganan con compromiso, no caen en wallets al azar. Haz stake, bloquea por más tiempo y obtén un multiplicador mayor. Cualquier builder puede lanzar un pool y empezar a construir una tesorería de activos digitales MOR.',
+  'home.title': 'Haz farming con tu stETH, stablecoins y MOR para ganar Alpha Coins.',
+  'home.sub': 'Los Alpha Coins llegan a los Farmers mediante un airdrop genuino: se ganan con compromiso, no caen en wallets al azar. Haz stake, bloquea por más tiempo y obtén un multiplicador mayor. Cualquier builder puede lanzar un pool y empezar a construir una tesorería de activos digitales MOR.',
 };

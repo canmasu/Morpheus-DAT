@@ -2,14 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  --c-white: 255 255 255;
+  --c-slate-100: 241 245 249;
+  --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;
+  --c-ink: 11 15 20;
+  --c-ink-soft: 18 24 33;
+  --c-ink-line: 31 39 51;
+  --c-ink-hover: 21 28 38;
+  --c-mor: 32 220 142;
+  --c-on-mor: 11 15 20;
+  --c-amber-300: 252 211 77;
+  --c-red-300: 252 165 165;
+  --c-red-400: 248 113 113;
+  --c-sky-300: 125 211 252;
+}
+:root[data-theme='day'] {
+  color-scheme: light;
+  --c-white: 15 23 42;
+  --c-slate-100: 15 23 42;
+  --c-slate-200: 30 41 59;
+  --c-slate-300: 51 65 85;
+  --c-slate-400: 71 85 105;
+  --c-slate-500: 100 116 139;
+  --c-slate-600: 148 163 184;
+  --c-ink: 244 246 249;
+  --c-ink-soft: 255 255 255;
+  --c-ink-line: 222 227 234;
+  --c-ink-hover: 248 250 252;
+  /* The bright mint is unreadable on white, so Day uses a deeper green with white text on it. */
+  --c-mor: 10 133 84;
+  --c-on-mor: 255 255 255;
+  --c-amber-300: 161 98 7;
+  --c-red-300: 185 28 28;
+  --c-red-400: 185 28 28;
+  --c-sky-300: 3 105 161;
+}
 body { @apply bg-ink text-slate-200 antialiased; }
 
 /* In the components layer so utilities (w-24, px-3, …) can still override them. */
 @layer components {
   .card { @apply rounded-xl border border-ink-line bg-ink-soft p-5; }
   .btn { @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40; }
-  .btn-primary { @apply btn bg-mor text-ink hover:bg-mor/90; }
+  .btn-primary { @apply btn bg-mor text-on-mor hover:bg-mor/90; }
   .btn-ghost { @apply btn border border-ink-line text-slate-200 hover:bg-white/5; }
   .input { @apply w-full rounded-lg border border-ink-line bg-ink px-3 py-2 font-mono text-sm text-slate-100 outline-none focus:border-mor/60; }
   .label { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400; }

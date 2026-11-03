@@ -317,7 +317,7 @@ export default function CreatePoolPage() {
             <div className="flex flex-wrap items-center gap-3">
               <input
                 className="input min-w-0 flex-1"
-                placeholder="OG Token address (0x…)"
+                placeholder="Alpha Coin address (0x…)"
                 value={form.rewardToken}
                 disabled={!!created}
                 onChange={(e) => update({ ...form, rewardToken: e.target.value.trim() })}
@@ -702,7 +702,7 @@ export default function CreatePoolPage() {
             </p>
           )}
           <button
-            className="w-full rounded-full bg-mor py-3.5 text-sm font-semibold text-ink transition hover:bg-mor/90 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500"
+            className="w-full rounded-full bg-mor py-3.5 text-sm font-semibold text-on-mor transition hover:bg-mor/90 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500"
             disabled={!canSubmit && !created}
             onClick={run}
           >
@@ -759,7 +759,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       onClick={() => onChange(!on)}
       className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-mor' : 'bg-white/10'}`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-[#fff] transition ${on ? 'left-[22px]' : 'left-0.5'}`} />
     </button>
   );
 }

@@ -8,7 +8,7 @@ import * as A from '@/contracts/artifacts';
 import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
 import { AddToWallet } from '@/components/AddToWallet';
-import { lzBaseOf, lzChainsOf, lzEthereumOf, pathVerifiers, viemChain } from '@/config/bridge';
+import { BASE_SEPOLIA_BRIDGE, TESTNET_FAUCETS, lzBaseOf, lzChainsOf, lzEthereumOf, pathVerifiers, viemChain } from '@/config/bridge';
 import { explorerAddress } from '@/config/networks';
 import { BRIDGE_STEPS, type BridgeCtx, type BridgeParams, type BridgeResults, type Side } from '@/lib/bridgePlan';
 import { TERMS_APPROVED, TERMS_HASH, TERMS_TEXT } from '@/lib/bridgeTerms';
@@ -207,7 +207,7 @@ export default function BridgePage() {
     setBusy('testToken');
     setError(undefined);
     try {
-      const { address: t } = await deploy(homeChain, address, A.MockERC20 as never, ['Test OG Token', 'tOG', 18], 'Deploy test token');
+      const { address: t } = await deploy(homeChain, address, A.MockERC20 as never, ['Test Alpha Coin', 'tALPHA', 18], 'Deploy test token');
       await write(homeChain, address, t, A.MockERC20.abi as Abi, 'mint', [address, parseUnits('42000000', 18)]);
       update({ ...s, token: t });
     } catch (e) {
@@ -353,6 +353,41 @@ export default function BridgePage() {
           {useEth ? ` and ${ethereum.name}` : ''} for gas.
         </p>
       </section>
+
+      {!isMainnet && (
+        <section className="card space-y-3">
+          <h2 className="font-medium text-white">Need test gas?</h2>
+          <p className="text-sm text-slate-400">Test tokens are free. Some faucets ask you to sign in, or to hold a little real ETH on mainnet.</p>
+          <ul className="divide-y divide-ink-line rounded-lg border border-ink-line text-sm">
+            {[
+              ...[home, base, ...(useEth ? [ethereum] : [])].filter((c, i, all) => all.findIndex((x) => x.key === c.key) === i),
+              ...[...chains, base].filter((c) => c.key !== home.key && c.key !== base.key && !(useEth && c.key === ethereum.key)),
+            ]
+              .filter((c, i, all) => all.findIndex((x) => x.key === c.key) === i)
+              .map((c) => {
+                const needed = c.key === home.key || c.key === base.key || (useEth && c.key === ethereum.key);
+                return (
+                  <li key={c.key} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
+                    <span className={needed ? 'text-white' : 'text-slate-400'}>
+                      {c.name} <span className="text-xs text-slate-500">({c.native.symbol})</span>
+                      {needed && <span className="ml-2 rounded bg-mor/15 px-1.5 py-0.5 text-[11px] text-mor">needed</span>}
+                    </span>
+                    <span className="flex flex-wrap gap-3 text-xs">
+                      {(TESTNET_FAUCETS[c.key] ?? []).map((f) => (
+                        <a key={f.url} className="text-mor hover:underline" href={f.url} target="_blank" rel="noreferrer">
+                          {f.label} ↗
+                        </a>
+                      ))}
+                    </span>
+                  </li>
+                );
+              })}
+          </ul>
+          <p className="text-xs text-slate-500">
+            Have Sepolia ETH? Send it to Base&apos;s bridge, on the Sepolia network, to get ETH on {base.name}: <span className="mono break-all text-slate-300">{BASE_SEPOLIA_BRIDGE}</span>
+          </p>
+        </section>
+      )}
 
       {/* 2 · owners */}
       <section className="card space-y-3">

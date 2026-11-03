@@ -5,7 +5,7 @@ import { pathVerifiers } from '@/config/bridge';
 
 /** Same steps for the website and scripts/dry-run-bridge.ts. Everything is signed by the Partner's wallet.
  * Three possible nodes: the adapter on the token's home chain, the OFT on Base (MOR pools) and, optionally, the OFT on
- * Ethereum (stETH and stablecoin pools). Every pair is linked, so OG Tokens can move between any two of them. */
+ * Ethereum (stETH and stablecoin pools). Every pair is linked, so Alpha Coins can move between any two of them. */
 
 const endpointAbi = parseAbi([
   'struct SetConfigParam { uint32 eid; uint32 configType; bytes config; }',

@@ -9,15 +9,17 @@ URL = 'https://metadata.layerzero-api.com/v1/metadata'
 MAINNET = ['ethereum', 'bsc', 'optimism', 'polygon', 'linea', 'scroll', 'mantle', 'monad', 'robinhood', 'arc', 'megaeth', 'conflux']
 # Not yet passed. Failed on a fork, cause not investigated: arbitrum, avalanche, sonic, hyperliquid, sei.
 # RPC did not respond: bera, unichain, plasma. Not run: katana, worldchain, ink, celo, xlayer, stable.
-TESTNET = ['sepolia-testnet', 'bsc-testnet', 'arbitrum-sepolia', 'optimism-sepolia', 'amoy-testnet', 'monad-testnet',
+TESTNET = ['bsc-testnet', 'sepolia-testnet', 'arbitrum-sepolia', 'optimism-sepolia', 'amoy-testnet', 'monad-testnet',
            'robinhood-testnet', 'arc-testnet']
 # conflux-testnet is left out: LayerZero's endpoint there has no default route to Base Sepolia (getSendLibrary reverts).
-NAMES = {'conflux': 'Conflux eSpace', 'bsc': 'BNB Chain', 'linea': 'Linea', 'bera': 'Berachain', 'hyperliquid': 'HyperEVM', 'xlayer': 'X Layer', 'arc': 'Arc', 'robinhood': 'Robinhood Chain',
+NAMES = {'base': 'Base', 'base-sepolia': 'Base Sepolia', 'ethereum': 'Ethereum', 'conflux': 'Conflux eSpace', 'bsc': 'BNB Chain', 'linea': 'Linea', 'bera': 'Berachain', 'hyperliquid': 'HyperEVM', 'xlayer': 'X Layer', 'arc': 'Arc', 'robinhood': 'Robinhood Chain',
          'worldchain': 'World Chain', 'megaeth': 'MegaETH', 'sepolia-testnet': 'Sepolia', 'bsc-testnet': 'BNB Testnet',
          'arbitrum-sepolia': 'Arbitrum Sepolia', 'optimism-sepolia': 'Optimism Sepolia', 'amoy-testnet': 'Polygon Amoy',
          'monad-testnet': 'Monad Testnet', 'robinhood-testnet': 'Robinhood Testnet', 'arc-testnet': 'Arc Testnet'}
 # Conflux's own public RPCs; the metadata lists third-party ones first.
 RPC = {'conflux': 'https://evm.confluxrpc.com'}
+# LayerZero's data has an old or awkward symbol for these.
+NATIVE = {'sepolia-testnet': 'ETH', 'polygon': 'POL', 'amoy-testnet': 'POL'}
 SECOND = ['nethermind', 'horizen-labs', 'deutsche-telekom', 'google-cloud', 'p2p', 'canary']
 
 src = sys.argv[1] if len(sys.argv) > 1 else None
@@ -40,7 +42,7 @@ def entry(key, stage, others=()):
     e = {
         'key': key, 'name': NAMES.get(key, v.get('chainName', key).title()), 'chainId': det['nativeChainId'], 'eid': int(dep['eid']),
         'endpoint': dep['endpointV2']['address'], 'sendLib': dep['sendUln302']['address'], 'receiveLib': dep['receiveUln302']['address'],
-        'executor': dep['executor']['address'], 'native': {'name': nat['name'].split()[0], 'symbol': nat['symbol'].split()[0], 'decimals': nat.get('decimals', 18)},
+        'executor': dep['executor']['address'], 'native': {'name': nat['name'].split()[0], 'symbol': NATIVE.get(key) or nat['symbol'].split()[0], 'decimals': nat.get('decimals', 18)},
         'rpc': rpc, 'explorer': (v.get('blockExplorers') or [{}])[0].get('url', ''),
     }
     here = dvns(key)

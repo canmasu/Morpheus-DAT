@@ -543,7 +543,7 @@ function Pool() {
 
           {isConnected ? (
             <button
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-mor py-3.5 text-sm font-semibold text-ink transition hover:bg-mor/90 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-mor py-3.5 text-sm font-semibold text-on-mor transition hover:bg-mor/90 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500"
               disabled={!canStake}
               onClick={doStake}
             >

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,7 +15,7 @@ import {CapitalAccount} from "./CapitalAccount.sol";
 /// @title PoolVault
 /// @notice One Partner's pool. Contributors stake USDC or stETH, keep their principal and earn the Partner Token;
 /// the principal's Morpheus yield earns MOR for the Partner on Arbitrum.
-/// @dev Safety rules (see docs/proposal.md, "Principal safety"):
+/// @dev Safety rules:
 ///  1. Reward claims never touch Morpheus.
 ///  3. This contract's ledger is the source of truth for principal.
 ///  4. Accounts are pulled out of Morpheus `PREFETCH_WINDOW` before their earliest unlock.

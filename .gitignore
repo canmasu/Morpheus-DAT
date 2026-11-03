@@ -3,3 +3,7 @@ contracts/cache/
 contracts/broadcast/
 .env
 .DS_Store
+
+# Private notes, kept on this machine only
+docs/proposal.md
+docs/morpheus-economics.md

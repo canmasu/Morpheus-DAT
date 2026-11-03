@@ -108,7 +108,7 @@ function PoolRows({ pool, detail: p, asset, pinnedShadow }: { pool: PoolView; de
           const href = `/pool/?v=${pool.vault}${pool.onBase ? '&c=base' : ''}&asset=${encodeURIComponent(s.asset.symbol)}`;
           return (
             <tr key={s.id} className="group cursor-pointer hover:bg-white/[0.02]" onClick={() => router.push(href)}>
-              <td className={`${cell} sticky left-0 z-10 min-w-[170px] bg-ink-soft pl-4 md:pl-5 group-hover:bg-[#151c26] ${pinnedShadow ? 'shadow-[6px_0_8px_-6px_rgba(0,0,0,0.6)]' : ''}`}>
+              <td className={`${cell} sticky left-0 z-10 min-w-[170px] bg-ink-soft pl-4 md:pl-5 group-hover:bg-ink-hover ${pinnedShadow ? 'shadow-[6px_0_8px_-6px_rgba(0,0,0,0.6)]' : ''}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex shrink-0 items-center" title={`${s.asset.symbol} → ${p.reward.symbol}`}>
                     <TokenIcon symbol={s.asset.symbol} size={32} />
