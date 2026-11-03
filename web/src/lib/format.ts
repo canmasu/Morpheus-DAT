@@ -7,9 +7,21 @@ export const fmt = (v: bigint, decimals: number, max = 4) =>
 
 export const fmtDate = (s: bigint) => new Date(Number(s) * 1000).toLocaleString();
 
+let monthsFormat = (n: string) => `${n} months`;
+/** Set by the language provider so "12 months" follows the chosen language. */
+export const setMonthsFormat = (f: (n: string) => string) => {
+  monthsFormat = f;
+};
+
 export const months = (seconds: bigint) => {
   const m = (Number(seconds) * 12) / (365 * 86400);
-  return Number.isInteger(Math.round(m * 10) / 10) ? `${Math.round(m)} months` : `${m.toFixed(1)} months`;
+  return monthsFormat(Number.isInteger(Math.round(m * 10) / 10) ? String(Math.round(m)) : m.toFixed(1));
+};
+
+/** Just the number of months, e.g. "12" or "1.1". */
+export const monthsNum = (seconds: bigint) => {
+  const m = (Number(seconds) * 12) / (365 * 86400);
+  return Number.isInteger(Math.round(m * 10) / 10) ? String(Math.round(m)) : m.toFixed(1);
 };
 
 export function countdown(to: bigint, now = Date.now() / 1000) {

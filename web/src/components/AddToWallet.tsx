@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import type { Address, Chain } from 'viem';
 import { addTokenToWallet, errorText } from '@/lib/tx';
+import { useI18n } from '@/i18n/I18nProvider';
 
 /** "+ Add TOKEN to wallet": asks MetaMask (or any connected wallet) to show the token. */
 export function AddToWallet({ chain, token, symbol, decimals, className = '' }: { chain: Chain; token: Address; symbol: string; decimals: number; className?: string }) {
   const { address, isConnected } = useAccount();
   const [state, setState] = useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const [msg, setMsg] = useState<string>();
+  const { t } = useI18n();
   if (!isConnected) return null;
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
@@ -29,7 +31,7 @@ export function AddToWallet({ chain, token, symbol, decimals, className = '' }: 
           }
         }}
       >
-        {state === 'added' ? '✓ Added' : state === 'busy' ? 'Check your wallet…' : `+ Add ${symbol} to wallet`}
+        {state === 'added' ? t('wallet.added') : state === 'busy' ? t('wallet.check') : t('wallet.add', { sym: symbol })}
       </button>
       {state === 'error' && <span className="text-[11px] text-red-300">{msg}</span>}
     </span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Chain } from 'viem';
+import { type Chain, zeroAddress } from 'viem';
 import { useNetwork } from '@/components/Providers';
 import { explorerAddress } from '@/config/networks';
 import { STEPS, toDeploymentsJson, type DeployState } from '@/lib/deployPlan';
@@ -19,12 +19,12 @@ export default function ContractsPage() {
     setLocal(s ? toDeploymentsJson(s, net) : undefined);
   }, [net]);
 
-  const committed = COMMITTED[net.name] as { ethereum?: Record<string, string>; arbitrum?: Record<string, string> };
+  const committed = COMMITTED[net.name] as { ethereum?: Record<string, string>; arbitrum?: Record<string, string>; base?: Record<string, string> };
   const source = committed.ethereum ? committed : local;
   const fromLocal = !committed.ethereum && !!local;
 
-  const datRows = (layer: 'l1' | 'l2') => {
-    const book = (layer === 'l1' ? source?.ethereum : source?.arbitrum) as Record<string, string> | undefined;
+  const datRows = (layer: 'l1' | 'l2' | 'base') => {
+    const book = (layer === 'l1' ? source?.ethereum : layer === 'l2' ? source?.arbitrum : source?.base) as Record<string, string> | undefined;
     return STEPS.filter((s) => s.layer === layer && book?.[s.id] && !s.id.includes('_')).map((s) => [s.title, book![s.id]] as const);
   };
 
@@ -50,6 +50,20 @@ export default function ContractsPage() {
         ]}
       />
       <Table title={`MOR · ${net.l2.name}`} chain={net.l2} rows={[['MOR', net.mor]]} />
+      {net.builders && (
+        <>
+          <Table title={`Morpheus DAT · ${net.builders.chain.name}`} chain={net.builders.chain} rows={datRows('base')} empty="Not deployed yet." />
+          <Table
+            title={net.builders.simulated ? 'Morpheus Builders (our simulation of its code)' : 'Morpheus Builders'}
+            chain={net.builders.chain}
+            rows={net.builders.contract === zeroAddress ? [] : [
+              ['BuildersV4', net.builders.contract],
+              ['MOR', net.builders.mor],
+            ]}
+            empty="Not deployed yet."
+          />
+        </>
+      )}
     </div>
   );
 }

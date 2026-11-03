@@ -11,12 +11,12 @@ const net = NETWORKS.local;
 const me = ADMIN_WALLETS[0];
 const pub = { l1: createPublicClient({ chain: net.l1, transport: http(undefined, { timeout: 180_000 }) }), l2: createPublicClient({ chain: net.l2, transport: http(undefined, { timeout: 180_000 }) }) };
 const wal = { l1: createWalletClient({ chain: net.l1, transport: http(undefined, { timeout: 180_000 }), account: me }), l2: createWalletClient({ chain: net.l2, transport: http(undefined, { timeout: 180_000 }), account: me }) };
-const rpc = (layer: 'l1' | 'l2', method: string, params: unknown[]) => pub[layer].request({ method: method as never, params: params as never });
+const rpc = (layer: 'l1' | 'l2', method: string, params: unknown[]) => pub[layer as 'l1'].request({ method: method as never, params: params as never });
 
 async function send(layer: 'l1' | 'l2', address: Address, abi: Abi, functionName: string, args: unknown[]) {
-  const { request } = await pub[layer].simulateContract({ account: me, address, abi, functionName, args } as never);
-  const hash = await wal[layer].writeContract(request as never);
-  const r = await pub[layer].waitForTransactionReceipt({ hash });
+  const { request } = await pub[layer as 'l1'].simulateContract({ account: me, address, abi, functionName, args } as never);
+  const hash = await wal[layer as 'l1'].writeContract(request as never);
+  const r = await pub[layer as 'l1'].waitForTransactionReceipt({ hash });
   if (r.status !== 'success') throw new Error(`${functionName} reverted`);
   return r;
 }
@@ -29,11 +29,12 @@ async function main() {
     const ctx: Ctx = {
       net, deployer: me, params: state.params, results: state.results,
       deploy: async (layer, art, args) => {
-        const hash = await wal[layer].deployContract({ abi: art.abi, bytecode: art.bytecode, args } as never);
-        const r = await pub[layer].waitForTransactionReceipt({ hash });
+        const hash = await wal[layer as 'l1'].deployContract({ abi: art.abi, bytecode: art.bytecode, args } as never);
+        const r = await pub[layer as 'l1'].waitForTransactionReceipt({ hash });
         return { address: r.contractAddress!, hash };
       },
-      write: async (layer, address, abi, fn, args) => ({ hash: (await send(layer, address, abi, fn, args)).transactionHash }),
+      write: async (layer, address, abi, fn, args) => ({ hash: (await send(layer as 'l1', address, abi, fn, args)).transactionHash }),
+      read: (layer, address, abi, functionName, args) => pub[layer as 'l1'].readContract({ address, abi, functionName, args } as never),
     };
     state.results[step.id] = step.skip?.(ctx) ? { skipped: true } : await step.run(ctx);
     console.log('step', step.id, state.results[step.id].address ?? '');

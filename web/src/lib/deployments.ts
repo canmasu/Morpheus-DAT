@@ -6,8 +6,9 @@ import { load } from './storage';
 import { toDeploymentsJson, type DeployState } from './deployPlan';
 
 export type Deployments = {
-  ethereum?: { poolFactory?: Address; otcMarket?: Address; adapter?: Address };
+  ethereum?: { poolFactory?: Address; otcMarket?: Address; adapter?: Address; ethBridgeRegistry?: Address };
   arbitrum?: { splitterDeployer?: Address; arbFeeConfig?: Address };
+  base?: { baseFactory?: Address; baseSplitterDeployer?: Address; bridgeRegistry?: Address };
 };
 
 const COMMITTED: Record<Exclude<NetworkName, 'local'>, Deployments> = {

@@ -4,18 +4,20 @@ import { useEffect, useState } from 'react';
 import { explorerTx } from '@/config/networks';
 import { dismissTx, subscribeTx, type TxNotice } from '@/lib/txEvents';
 import { short } from '@/lib/format';
+import { useI18n } from '@/i18n/I18nProvider';
 
 /** Bottom-right list of the site's recent transactions, each linking to the block explorer. */
 export function TxToasts() {
   const [list, setList] = useState<TxNotice[]>([]);
+  const { t } = useI18n();
   useEffect(() => subscribeTx(setList), []);
 
   // Confirmed transactions fade out after 20 seconds; pending and failed ones stay until dismissed.
   useEffect(() => {
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       for (const n of list) if (n.status === 'success' && Date.now() - n.at > 20_000) dismissTx(n.id);
     }, 2000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [list]);
 
   if (list.length === 0) return null;
@@ -30,9 +32,9 @@ export function TxToasts() {
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">
                 {n.status === 'pending' ? '⏳' : n.status === 'success' ? '✓' : '✗'} {n.label}
-                <span className="font-normal text-slate-400"> · {n.status === 'pending' ? 'pending' : n.status === 'success' ? 'confirmed' : 'failed'}</span>
+                <span className="font-normal text-slate-400"> · {n.status === 'pending' ? t('tx.pending') : n.status === 'success' ? t('tx.confirmed') : t('tx.failed')}</span>
               </span>
-              <button className="text-slate-500 hover:text-slate-200" onClick={() => dismissTx(n.id)} aria-label="Dismiss">
+              <button className="text-slate-500 hover:text-slate-200" onClick={() => dismissTx(n.id)} aria-label={t('tx.dismiss')}>
                 ×
               </button>
             </div>

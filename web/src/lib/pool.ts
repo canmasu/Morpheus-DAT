@@ -14,7 +14,7 @@ export type SleeveForm = {
   cap: string;
   minPerWallet: string;
   maxPerWallet: string;
-  /** Alpha: amount brackets (starts, ascending), one multiplier per bracket, one lock, max per stake. */
+  /** OG: amount brackets (starts, ascending), one multiplier per bracket, one lock, max per stake. */
   fixedEnabled: boolean;
   fixedAmounts: string;
   fixedMult: string;
@@ -49,8 +49,8 @@ export type PoolConfig = {
   morBoost: boolean;
 };
 
-/** Base rates are at 1x: multipliers are entered exactly as contributors see them (Alpha $100 = 1x, Omega 12
- * months = 20x). 1,000 per $1M at 1x = the proposal's 20,000 per $1M at Omega 12 months. */
+/** Base rates are at 1x: multipliers are entered exactly as farmers see them (OG $100 = 1x, Whale 12
+ * months = 20x). 1,000 per $1M at 1x = the proposal's 20,000 per $1M at Whale 12 months. */
 const SLEEVE_DEFAULTS: Record<string, Partial<SleeveForm>> = {
   USDC: { perToken: '0.001', cap: '10000000', minPerWallet: '1000000', maxPerWallet: '10000000' },
   USDT: { perToken: '0.001', cap: '10000000', minPerWallet: '1000000', maxPerWallet: '10000000' },
@@ -105,11 +105,11 @@ export function defaultForm(net: NetworkConfig, nowMs = Date.now()): PoolForm {
 /** How many USD one token counts as when copying the USD tier table to another asset. Derived from the
  * proposal's rates (20,000 per $1M vs 10,000 per 500 stETH → 1 stETH = $1,000); no price feed. On testnet LINK
  * stands in for USDC, so it is 1:1. */
-const USD_PER_TOKEN: Record<string, number> = { USDC: 1, USDT: 1, LINK: 1, stETH: 1000, stETHMock: 1000 };
+const USD_PER_TOKEN: Record<string, number> = { USDC: 1, USDT: 1, LINK: 1, MOR: 1, stETH: 1000, stETHMock: 1000 };
 
 /** The example pool from the proposal, applied to every stake asset on the network, with the base rate at 1x:
- * Alpha (from $100: brackets $100 / $1k / $10k / $100k at 1x / 2x / 3x / 5x, 12 months, up to just under $1M)
- * and Omega ($1M – $10M per wallet, 20x / 22x / 25x / 30x / 50x by lock). Non-USD assets are scaled by
+ * OG (from $100: brackets $100 / $1k / $10k / $100k at 1x / 2x / 3x / 5x, 12 months, up to just under $1M)
+ * and Whale ($1M – $10M per wallet, 20x / 22x / 25x / 30x / 50x by lock). Non-USD assets are scaled by
  * USD_PER_TOKEN. */
 export function applyExamplePool(form: PoolForm, net: NetworkConfig): PoolForm {
   const sleeves = { ...form.sleeves };
@@ -149,7 +149,7 @@ export function applyExamplePool(form: PoolForm, net: NetworkConfig): PoolForm {
 }
 
 /** New pools store multipliers exactly as shown (base rate at 1x), so this is 1x. Older pools that used
- * fractions below 1x (e.g. Alpha 0.05x) are shown relative to their lowest multiplier instead. */
+ * fractions below 1x (e.g. OG 0.05x) are shown relative to their lowest multiplier instead. */
 export function baseMultBps(locks: { multBps: number }[], tiers: { kind: number; multBps: readonly number[] }[]) {
   const all = [...locks.map((l) => l.multBps), ...tiers.filter((t) => t.kind !== 0).flatMap((t) => [...t.multBps])];
   return Math.max(1, Math.min(10_000, ...all));
@@ -231,19 +231,19 @@ export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: 
       const amounts = f.fixedAmounts
         .split(/[,\s]+/)
         .filter(Boolean)
-        .map((x, i) => num(x, `${p} Alpha bracket ${i + 1}`, errors, a.decimals));
-      // One multiplier for all amounts, or one per amount (e.g. Alpha: 1, 2, 3, 5).
+        .map((x, i) => num(x, `${p} OG bracket ${i + 1}`, errors, a.decimals));
+      // One multiplier for all amounts, or one per amount (e.g. OG: 1, 2, 3, 5).
       const ms = f.fixedMult.split(/[,\s]+/).filter(Boolean).map(multToBps);
       const multBps = ms.length === 1 ? amounts.map(() => ms[0]) : ms;
-      if (amounts.length === 0) errors.push(`${p}: Alpha needs at least one bracket`);
-      if (multBps.length !== amounts.length) errors.push(`${p}: give one multiplier, or one per Alpha bracket (${amounts.length})`);
-      if (multBps.some((m) => !(m > 0))) errors.push(`${p}: Alpha multipliers must be above 0`);
-      if (f.fixedLock >= lockOptions.length) errors.push(`${p}: Alpha lock does not exist`);
+      if (amounts.length === 0) errors.push(`${p}: OG needs at least one bracket`);
+      if (multBps.length !== amounts.length) errors.push(`${p}: give one multiplier, or one per OG bracket (${amounts.length})`);
+      if (multBps.some((m) => !(m > 0))) errors.push(`${p}: OG multipliers must be above 0`);
+      if (f.fixedLock >= lockOptions.length) errors.push(`${p}: OG lock does not exist`);
       for (let i = 1; i < amounts.length; i++) {
-        if (amounts[i] <= amounts[i - 1]) errors.push(`${p}: Alpha bracket starts must go up (${f.fixedAmounts})`);
+        if (amounts[i] <= amounts[i - 1]) errors.push(`${p}: OG bracket starts must go up (${f.fixedAmounts})`);
       }
-      const maxPerStake = num(f.fixedMax, `${p} Alpha max per stake`, errors, a.decimals, true);
-      if (maxPerStake !== 0n && amounts.length > 0 && maxPerStake < amounts[0]) errors.push(`${p}: Alpha max is below its first bracket`);
+      const maxPerStake = num(f.fixedMax, `${p} OG max per stake`, errors, a.decimals, true);
+      if (maxPerStake !== 0n && amounts.length > 0 && maxPerStake < amounts[0]) errors.push(`${p}: OG max is below its first bracket`);
       tiers.push({ kind: 2, minPerWallet: 0n, maxPerWallet: maxPerStake, amounts, multBps, lockOptionId: f.fixedLock });
     }
     return { stakeToken: a.token, unit, ratePerUnit, cap, tiers };
@@ -266,7 +266,7 @@ export function buildConfig(form: PoolForm, net: NetworkConfig, rewardDecimals: 
     depositStart: BigInt(Math.floor(startMs / 1000) || 0),
     depositEnd: BigInt(Math.floor(endMs / 1000) || 0),
     epochLength: epoch,
-    morBoost: form.morBoost,
+    morBoost: form.morBoost && !net.isBase,
   };
   return { cfg, errors, budget, fullCapReward };
 }

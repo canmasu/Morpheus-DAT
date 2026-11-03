@@ -28,20 +28,22 @@ async function main() {
     params: state.params,
     results: state.results,
     deploy: async (layer, artifact, args) => {
-      const hash = await wal[layer].deployContract({ abi: artifact.abi, bytecode: artifact.bytecode, args, chain: chains[layer] } as never);
-      const r = await pub[layer].waitForTransactionReceipt({ hash });
+      const hash = await wal[layer as 'l1'].deployContract({ abi: artifact.abi, bytecode: artifact.bytecode, args, chain: chains[layer as 'l1'] } as never);
+      const r = await pub[layer as 'l1'].waitForTransactionReceipt({ hash });
       if (r.status !== 'success' || !r.contractAddress) throw new Error('deploy reverted');
       return { address: r.contractAddress, hash };
     },
     write: async (layer, address: Address, abi: Abi, functionName, args) => {
-      const { request } = await pub[layer].simulateContract({ account: deployer, address, abi, functionName, args } as never);
-      const hash = await wal[layer].writeContract(request as never);
-      const r = await pub[layer].waitForTransactionReceipt({ hash });
+      const { request } = await pub[layer as 'l1'].simulateContract({ account: deployer, address, abi, functionName, args } as never);
+      const hash = await wal[layer as 'l1'].writeContract(request as never);
+      const r = await pub[layer as 'l1'].waitForTransactionReceipt({ hash });
       if (r.status !== 'success') throw new Error('tx reverted');
       return { hash };
     },
+    read: (layer, address, abi, functionName, args) => pub[layer as 'l1'].readContract({ address, abi, functionName, args } as never),
   });
   for (const step of STEPS) {
+    if (step.layer === 'base') continue; // needs a Base fork as well; covered by contracts/test/fork/BuildersFork.t.sol
     const c = ctx();
     if (step.skip?.(c)) {
       state.results[step.id] = { skipped: true };

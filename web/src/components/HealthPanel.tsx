@@ -21,8 +21,8 @@ export function HealthPanel({ deployments }: { deployments: ReturnType<typeof to
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const l1 = getPublicClient(wagmiConfig, { chainId: net.l1.id as never });
-      const l2 = getPublicClient(wagmiConfig, { chainId: net.l2.id as never });
+      const l1 = getPublicClient(wagmiConfig, { chainId: net.l1.id as never })!;
+      const l2 = getPublicClient(wagmiConfig, { chainId: net.l2.id as never })!;
       const out: Check[] = [];
       const factory = eth.poolFactory as Address;
       try {

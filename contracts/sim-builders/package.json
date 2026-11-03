@@ -1,0 +1,9 @@
+{
+  "name": "dat-sim-builders",
+  "private": true,
+  "dependencies": {
+    "@openzeppelin/contracts": "4.9.2",
+    "@openzeppelin/contracts-upgradeable": "4.9.2",
+    "@solarity/solidity-lib": "2.5.9"
+  }
+}

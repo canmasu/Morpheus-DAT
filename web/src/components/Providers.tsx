@@ -6,6 +6,7 @@ import { WagmiProvider } from 'wagmi';
 import { wagmiConfig } from '@/config/wagmi';
 import { DEFAULT_NETWORK, NETWORKS, type NetworkConfig, type NetworkName } from '@/config/networks';
 import { load, save } from '@/lib/storage';
+import { I18nProvider } from '@/i18n/I18nProvider';
 
 const queryClient = new QueryClient();
 
@@ -26,7 +27,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <NetworkContext.Provider value={{ net: NETWORKS[name], setNetwork }}>{children}</NetworkContext.Provider>
+        <NetworkContext.Provider value={{ net: NETWORKS[name], setNetwork }}>
+          <I18nProvider>{children}</I18nProvider>
+        </NetworkContext.Provider>
       </QueryClientProvider>
     </WagmiProvider>
   );

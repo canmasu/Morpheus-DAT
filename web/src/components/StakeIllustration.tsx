@@ -1,6 +1,11 @@
+'use client';
+
+import { useI18n } from '@/i18n/I18nProvider';
+
 /** Outline clip art for the landing page: stake USDC → locked for x months → unstake: USDC back + a crowned
- * Partner Token. Transparent background; strokes follow the text colour, the reward follows the accent. */
+ * OG Token. Transparent background; strokes follow the text colour, the reward follows the accent. */
 export function StakeIllustration({ className = '' }: { className?: string }) {
+  const { t } = useI18n();
   const ink = 'currentColor';
   const accent = '#20dc8e';
   const stroke = { fill: 'none', strokeWidth: 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -33,7 +38,7 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
       viewBox="0 0 710 210"
       className={className}
       role="img"
-      aria-label="Stake USDC, it stays locked for a chosen number of months, then unstake to get your USDC back plus a Partner Token reward"
+      aria-label={t('ill.aria')}
     >
       {/* 1 · USDC */}
       {usdc(70, 105, 42)}
@@ -41,7 +46,7 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
         USDC
       </text>
 
-      {arrow(124, 222, 105, 'Stake')}
+      {arrow(124, 222, 105, t('ill.stake'))}
 
       {/* 2 · lock + clock */}
       <g {...stroke} stroke={ink}>
@@ -55,12 +60,12 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
         <path d="M336 62 V 74 L 345 80" />
       </g>
       <text x={290} y={190} textAnchor="middle" fontSize="14" fill={ink} opacity={0.75}>
-        locked for x months
+        {t('ill.locked')}
       </text>
 
-      {arrow(372, 470, 105, 'Unstake')}
+      {arrow(372, 470, 105, t('ill.unstake'))}
 
-      {/* 3 · USDC back + Partner Token (crown in the middle of the coin) */}
+      {/* 3 · USDC back + OG Token (crown in the middle of the coin) */}
       {usdc(520, 108, 38)}
       <text x={588} y={118} textAnchor="middle" fontSize="30" fontWeight="600" fill={ink}>
         +
@@ -75,10 +80,10 @@ export function StakeIllustration({ className = '' }: { className?: string }) {
         <circle cx="671" cy="96" r="2" fill={accent} />
       </g>
       <text x={520} y={172} textAnchor="middle" fontSize="14" fill={ink} opacity={0.75}>
-        USDC back
+        {t('ill.back', { sym: 'USDC' })}
       </text>
       <text x={656} y={172} textAnchor="middle" fontSize="14" fontWeight="600" fill={accent}>
-        Partner Token
+        {t('ill.og')}
       </text>
     </svg>
   );

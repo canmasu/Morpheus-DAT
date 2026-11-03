@@ -6,33 +6,39 @@ import { useAccount } from 'wagmi';
 import { formatUnits, isAddress, parseUnits, type Address } from 'viem';
 import { useNetwork } from '@/components/Providers';
 import { ConnectButton } from '@/components/ConnectButton';
-import { explorerAddress } from '@/config/networks';
+import { baseNet, explorerAddress, poolNet } from '@/config/networks';
 import { applyExamplePool, buildConfig, defaultForm, fmtMult, reward, YEAR, type PoolForm, type SleeveForm } from '@/lib/pool';
 import { TokenIcon } from '@/components/TokenIcon';
 import { fmtCompact } from '@/lib/format';
 import { AddToWallet } from '@/components/AddToWallet';
 import { morClaimLockMultiplier } from '@/lib/mor';
-import { approveIfNeeded, contractsFor, createPool, createTestToken, deploySplitter, tokenInfo } from '@/lib/partner';
+import { approveIfNeeded, contractsFor, createBuilderPool, createPool, createTestToken, deploySplitter, subnetCreationFee, subnetNameTaken, tokenInfo } from '@/lib/partner';
 import { errorText } from '@/lib/tx';
 import { load, save } from '@/lib/storage';
 import { useChainNow } from '@/hooks/useChainNow';
 
 type Token = Awaited<ReturnType<typeof tokenInfo>>;
 type Phase = 'form' | 'approve' | 'create' | 'splitter' | 'done';
-const PHASES: [Phase, string][] = [
-  ['approve', 'Approve the reward budget'],
-  ['create', 'Create the pool on Ethereum'],
-  ['splitter', 'Deploy the MOR splitter on Arbitrum'],
-];
 
 const fmt = (v: bigint, d: number) => Number(formatUnits(v, d)).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
 export default function CreatePoolPage() {
   const { address, isConnected } = useAccount();
-  const { net } = useNetwork();
+  const { net: root } = useNetwork();
+  const baseView = baseNet(root);
+  const [onBase, setOnBase] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('c') === 'base') setOnBase(true);
+  }, []);
+  const net = poolNet(root, onBase);
   const { factory, splitterDeployer } = contractsFor(net);
+  const PHASES: [Phase, string][] = [
+    ['approve', 'Approve the reward budget'],
+    ['create', `Create the pool on ${net.l1.name}`],
+    ['splitter', `Deploy the MOR splitter on ${net.l2.name}`],
+  ];
   // v2: base rate at 1x and multipliers as shown; drafts saved in the older scale are not loaded.
-  const draftKey = `dat-pool-draft-v3-${net.name}`;
+  const draftKey = `dat-pool-draft-v3-${net.name}${onBase ? '-base' : ''}`;
   const chainNow = useChainNow(net);
   const chainNowMs = chainNow * 1000;
   const chainAhead = chainNow - Math.floor(Date.now() / 1000) > 60;
@@ -46,13 +52,17 @@ export default function CreatePoolPage() {
   const [created, setCreated] = useState<{ vault: Address; morReceiver: Address }>();
   const [mounted, setMounted] = useState(false);
   const [testToken, setTestToken] = useState({ name: 'Test Token', symbol: 'TEST', supply: '42,000,000' });
+  const [subnet, setSubnet] = useState({ name: '', description: '', website: '', image: '' });
+  const [subnetFee, setSubnetFee] = useState<bigint>();
+  const [nameTaken, setNameTaken] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const draft = load<PoolForm>(draftKey);
     const base = defaultForm(net, chainNowMs);
     // Dates always start fresh; everything else comes from the saved draft.
-    setForm(draft ? { ...base, ...draft, start: base.start, end: base.end } : base);
+    const fromUrl = new URLSearchParams(window.location.search).get('token');
+    setForm({ ...(draft ? { ...base, ...draft, start: base.start, end: base.end } : base), ...(fromUrl ? { rewardToken: fromUrl } : {}) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey, net, chainAhead]);
 
@@ -69,9 +79,23 @@ export default function CreatePoolPage() {
     tokenInfo(net, form.rewardToken, address, factory).then(setToken, () => setToken(undefined));
   }, [net, form.rewardToken, address, factory, tokenTick]);
 
+  useEffect(() => {
+    setSubnetFee(undefined);
+    if (onBase) subnetCreationFee(net).then(setSubnetFee, () => setSubnetFee(undefined));
+  }, [net, onBase]);
+
+  const subnetName = subnet.name.trim();
+  useEffect(() => {
+    setNameTaken(false);
+    if (!onBase || !subnetName) return;
+    const timer = setTimeout(() => subnetNameTaken(net, subnetName).then(setNameTaken, () => {}), 400);
+    return () => clearTimeout(timer);
+  }, [net, onBase, subnetName]);
+
   const built = useMemo(() => buildConfig(form, net, token?.decimals, chainNowMs), [form, net, token?.decimals, chainNowMs]);
   const balanceShort = token && built.budget > token.balance;
-  const canSubmit = isConnected && factory && splitterDeployer && built.errors.length === 0 && !balanceShort && !busy;
+  const subnetReady = !onBase || (!!subnetName && !nameTaken && subnetFee !== undefined);
+  const canSubmit = isConnected && factory && splitterDeployer && built.errors.length === 0 && !balanceShort && subnetReady && !busy;
 
   const run = async () => {
     if (!address || !factory || !splitterDeployer) return;
@@ -83,7 +107,17 @@ export default function CreatePoolPage() {
         setPhase('approve');
         await approveIfNeeded(net, address, built.cfg.rewardToken, factory, built.budget);
         setPhase('create');
-        pool = await createPool(net, address, factory, built.cfg, built.budget);
+        if (onBase) {
+          if (subnetFee) await approveIfNeeded(net, address, net.mor, factory, subnetFee);
+          pool = await createBuilderPool(net, address, factory, built.cfg, built.budget, subnetName, {
+            slug: subnetName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+            description: subnet.description.trim(),
+            website: subnet.website.trim(),
+            image: subnet.image.trim(),
+          });
+        } else {
+          pool = await createPool(net, address, factory, built.cfg, built.budget);
+        }
         setCreated(pool);
       }
       setPhase('splitter');
@@ -112,7 +146,37 @@ export default function CreatePoolPage() {
   };
 
   if (!mounted) return null;
-  if (!factory) return <p className="card text-sm text-amber-300">Morpheus DAT is not deployed on {net.label} yet.</p>;
+  const chainPicker = baseView && (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {[
+        [false, `${root.l1.name}: stETH and stablecoins`, `Staked in Morpheus Capital. MOR reaches you on ${root.l2.name}.`],
+        [true, `${baseView.l1.name}: MOR`, 'Staked in your own Morpheus Builders subnet. MOR reaches you on Base.'],
+      ].map(([value, title, text]) => (
+        <button
+          key={String(value)}
+          onClick={() => {
+            setOnBase(value as boolean);
+            setCreated(undefined);
+            setPhase('form');
+            setError(undefined);
+          }}
+          className={`rounded-xl border p-3 text-left ${onBase === value ? 'border-mor bg-mor/10' : 'border-ink-line hover:border-slate-500'}`}
+        >
+          <div className="text-sm font-medium text-white">{title as string}</div>
+          <div className="mt-1 text-xs text-slate-400">{text as string}</div>
+        </button>
+      ))}
+    </div>
+  );
+
+  if (!factory) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        {chainPicker}
+        <p className="card text-sm text-amber-300">Morpheus DAT is not deployed on {net.label} yet.</p>
+      </div>
+    );
+  }
 
   if (phase === 'done' && created) {
     return (
@@ -133,12 +197,15 @@ export default function CreatePoolPage() {
     );
   }
 
+  // The form follows the chain one effect later; until then it has no entry for this chain's assets.
+  if (net.stakeAssets.some((a) => !form.sleeves[a.symbol])) return null;
+
   const enabledAssets = net.stakeAssets.filter((a) => form.sleeves[a.symbol]?.enabled);
   const minLockMonths = (((Number(form.epochDays) || 0) + 30) * 12) / 365;
   const rSym = token?.symbol ?? 'tokens';
   const rDec = token?.decimals ?? 18;
 
-  // Multipliers as contributors will see them: relative to the lowest one in the pool.
+  // Multipliers as farmers will see them: relative to the lowest one in the pool.
   const toBps = (m: string) => Math.round(Number(m) * 10_000);
   const allBps = [
     ...form.locks.map((l) => toBps(l.mult)),
@@ -155,7 +222,7 @@ export default function CreatePoolPage() {
       morBoost: false,
       sleeves: Object.fromEntries(Object.entries(form.sleeves).map(([k, v]) => [k, { ...v, fixedLock: 0 }])),
     });
-  // Morpheus's MOR multiplier for a claim lock as long as each Omega lock, starting at deposit open.
+  // Morpheus's MOR multiplier for a claim lock as long as each Whale lock, starting at deposit open.
   const startSec = Math.floor(new Date(form.start).getTime() / 1000) || Math.floor(chainNowMs / 1000);
   const boosts = form.locks
     .map((l) => ({ months: l.months, x: morClaimLockMultiplier(startSec, startSec + Math.round((Number(l.months) * 365 * 86400) / 12)) }))
@@ -175,9 +242,11 @@ export default function CreatePoolPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-white">Create a pool</h1>
         <p className="mt-1 max-w-2xl text-sm text-slate-400">
-          Fund a pool with your token. Contributors stake, get their full stake back at unlock, and receive your token; you receive MOR.
+          Fund a pool with your token. Farmers farm with {onBase ? 'MOR' : 'stETH or stablecoins'}, get their full stake back at unlock, and receive your token; you receive MOR.
         </p>
       </div>
+
+      {chainPicker}
 
       {!isConnected && (
         <div className="card flex items-center justify-between">
@@ -190,7 +259,7 @@ export default function CreatePoolPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Template
           title="Example pool"
-          text="Alpha from $100 (1x – 5x, 12 months) + Omega $1M – $10M (20x – 50x, 12 – 60 months)"
+          text="OG from $100 (1x – 5x, 12 months) + Whale $1M – $10M (20x – 50x, 12 – 60 months)"
           onClick={() => update(applyExamplePool(form, net))}
         />
         {net.name !== 'mainnet' && (
@@ -202,11 +271,53 @@ export default function CreatePoolPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0 space-y-6">
           {/* 1 · reward token */}
+          {onBase && (
+            <Card n={0} title="Your Morpheus Builders subnet">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="label">Subnet name (cannot change later)</label>
+                  <input className="input" value={subnet.name} placeholder="My Project" onChange={(e) => setSubnet({ ...subnet, name: e.target.value })} />
+                  {nameTaken && <p className="mt-1 text-xs text-red-400">This name is already taken on Morpheus Builders.</p>}
+                </div>
+                <div>
+                  <label className="label">Website</label>
+                  <input className="input" value={subnet.website} placeholder="https://" onChange={(e) => setSubnet({ ...subnet, website: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <input className="input" value={subnet.description} onChange={(e) => setSubnet({ ...subnet, description: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Logo URL</label>
+                  <input className="input" value={subnet.image} placeholder="https://" onChange={(e) => setSubnet({ ...subnet, image: e.target.value })} />
+                </div>
+              </div>
+              <Why>
+                <p>
+                  The pool creates its own subnet, so you are listed as a builder on Morpheus. Every MOR staked here earns MOR for the subnet,
+                  and the pool sends it to your splitter: the DAT fee, then you. The pool stays the subnet&apos;s admin, so nobody can redirect
+                  the MOR or extend the withdraw lock. You can edit the listing later.
+                </p>
+                {!!subnetFee && (
+                  <p>
+                    Morpheus charges {fmt(subnetFee, 18)} MOR to create a subnet. You need it in this wallet, on {net.l1.name}.
+                  </p>
+                )}
+              </Why>
+            </Card>
+          )}
+
           <Card n={1} title="Reward token">
+            <p className="mb-3 text-xs text-slate-400">
+              Token on another chain?{' '}
+              <Link className="text-mor hover:underline" href="/partner/bridge/">
+                Bring it to {net.l1.name} →
+              </Link>
+            </p>
             <div className="flex flex-wrap items-center gap-3">
               <input
                 className="input min-w-0 flex-1"
-                placeholder="Partner Token address (0x…)"
+                placeholder="OG Token address (0x…)"
                 value={form.rewardToken}
                 disabled={!!created}
                 onChange={(e) => update({ ...form, rewardToken: e.target.value.trim() })}
@@ -264,7 +375,7 @@ export default function CreatePoolPage() {
           </Card>
 
           {/* 2 · assets and tiers */}
-          <Card n={2} title="What contributors can stake">
+          <Card n={2} title="What farmers can stake">
             <div className="space-y-4">
               {net.stakeAssets.map((a) => {
                 const f = form.sleeves[a.symbol];
@@ -307,14 +418,14 @@ export default function CreatePoolPage() {
                           <span>{a.symbol} in total</span>
                         </div>
 
-                        {/* Alpha */}
+                        {/* OG */}
                         <div className="rounded-lg bg-ink p-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="text-sm font-medium text-white">Alpha · smaller stakes</div>
+                              <div className="text-sm font-medium text-white">OG · smaller stakes</div>
                               <div className="text-xs text-slate-500">Any amount from the first bracket; multiplier by bracket; one lock</div>
                             </div>
-                            <Toggle on={f.fixedEnabled} onChange={(v) => setSleeve(a.symbol, { fixedEnabled: v })} label="Alpha" />
+                            <Toggle on={f.fixedEnabled} onChange={(v) => setSleeve(a.symbol, { fixedEnabled: v })} label="OG" />
                           </div>
                           {f.fixedEnabled && (
                             <div className="mt-3 space-y-2">
@@ -382,10 +493,10 @@ export default function CreatePoolPage() {
                           )}
                         </div>
 
-                        {/* Omega */}
+                        {/* Whale */}
                         <div className="rounded-lg bg-ink p-3">
-                          <div className="text-sm font-medium text-white">Omega · larger stakes</div>
-                          <div className="text-xs text-slate-500">Any amount in this range; the contributor picks a lock (step 3)</div>
+                          <div className="text-sm font-medium text-white">Whale · larger stakes</div>
+                          <div className="text-xs text-slate-500">Any amount in this range; the farmer picks a lock (step 3)</div>
                           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-300">
                             <span>From</span>
                             <input className="input w-36" value={f.minPerWallet} onChange={(e) => setSleeve(a.symbol, { minPerWallet: e.target.value })} />
@@ -408,10 +519,10 @@ export default function CreatePoolPage() {
           </Card>
 
           {/* 3 · locks */}
-          <Card n={3} title="Omega lock options">
+          <Card n={3} title="Whale lock options">
             <p className="-mt-2 mb-3 text-xs text-slate-500">
-              Shared by every asset&apos;s Omega tier
-              {enabledAssets.length > 0 ? ` (${enabledAssets.map((a) => a.symbol).join(', ')})` : ''}. Alpha uses one of these locks.
+              Shared by every asset&apos;s Whale tier
+              {enabledAssets.length > 0 ? ` (${enabledAssets.map((a) => a.symbol).join(', ')})` : ''}. OG uses one of these locks.
             </p>
             <div className="grid items-end gap-2 text-[11px] text-slate-500" style={{ gridTemplateColumns: lockCols }}>
               <span>Months</span>
@@ -489,10 +600,10 @@ export default function CreatePoolPage() {
               <p>
                 <b>Epoch</b>: Morpheus restarts its waiting times every time an address receives a stake, so the pool groups stakes made
                 in the same {form.epochDays || '30'}-day period with the same lock into one Morpheus address. Use 30 days for real pools,
-                1 day for testing. Contributors never see this.
+                1 day for testing. Farmers never see this.
               </p>
             </Why>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {!onBase && <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
                 [false, 'MOR every ~2 weeks (recommended)', 'Claim MOR as it builds up: about 14 days after each 30-day group closes, then every 14 days (Morpheus’s own minimum). Normal Morpheus rate.'],
                 [
@@ -513,7 +624,7 @@ export default function CreatePoolPage() {
                   <div className="mt-1 text-xs text-slate-400">{text as string}</div>
                 </button>
               ))}
-            </div>
+            </div>}
           </Card>
 
           {/* 5 · budget */}
@@ -549,13 +660,13 @@ export default function CreatePoolPage() {
                 <SumRow key={a.symbol} k={a.symbol}>
                   <span className="flex items-center gap-1.5">
                     <TokenIcon symbol={a.symbol} size={16} />
-                    {f.fixedEnabled ? 'Alpha + Omega' : 'Omega'}
+                    {f.fixedEnabled ? 'OG + Whale' : 'Whale'}
                   </span>
                 </SumRow>
               );
             })}
             <SumRow k="Locks">{form.locks.map((l) => l.months).join(' / ')} months</SumRow>
-            <SumRow k="MOR">{form.morBoost ? 'More, later (boost)' : 'Every ~2 weeks'}</SumRow>
+            <SumRow k="MOR">{onBase ? 'Any time, on Base' : form.morBoost ? 'More, later (boost)' : 'Every ~2 weeks'}</SumRow>
             <SumRow k="Budget">
               {form.budget || '—'} {rSym}
             </SumRow>
@@ -606,7 +717,7 @@ export default function CreatePoolPage() {
   );
 }
 
-/** Amount used for example figures: the Omega minimum, or 1 token. */
+/** Amount used for example figures: the Whale minimum, or 1 token. */
 function refAmount(f: SleeveForm, decimals: number) {
   try {
     const min = parseUnits((f.minPerWallet || '0').replace(/,/g, ''), decimals);

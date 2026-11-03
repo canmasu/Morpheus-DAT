@@ -1,12 +1,20 @@
-import { type Abi, type Address, erc20Abi, parseEventLogs, parseUnits } from 'viem';
+import { type Abi, type Address, type Hash, erc20Abi, parseAbi, parseEventLogs, parseUnits, zeroAddress } from 'viem';
 import * as A from '@/contracts/artifacts';
 import type { NetworkConfig } from '@/config/networks';
 import { deploymentsOf } from './deployments';
 import { deploy, ensureAllowance, publicClient, write } from './tx';
 import type { PoolConfig } from './pool';
 
+const buildersAbi = parseAbi([
+  'function subnetCreationFeeAmount() view returns (uint256)',
+  'function getSubnetId(string) view returns (bytes32)',
+  'function subnets(bytes32) view returns (string, address, uint128, uint128, uint128, uint256, address)',
+  'function subnetsData(bytes32) view returns (uint128, uint256, uint256, uint256, uint256)',
+]);
+
 export function contractsFor(net: NetworkConfig) {
   const d = deploymentsOf(net.name);
+  if (net.isBase) return { factory: d.base?.baseFactory, splitterDeployer: d.base?.baseSplitterDeployer };
   return { factory: d.ethereum?.poolFactory, splitterDeployer: d.arbitrum?.splitterDeployer };
 }
 
@@ -38,6 +46,56 @@ export async function createPool(net: NetworkConfig, partner: Address, factory: 
   if (!ev) throw new Error('PoolCreated event not found');
   return { vault: ev.args.vault, morReceiver: ev.args.morReceiver };
 }
+
+export type SubnetMetadata = { slug: string; description: string; website: string; image: string };
+
+/** Morpheus's Subnet creation fee (in MOR), paid by the Partner when creating a Base pool. */
+export const subnetCreationFee = (net: NetworkConfig) =>
+  publicClient(net.l1).readContract({ address: net.builders!.contract, abi: buildersAbi, functionName: 'subnetCreationFeeAmount' });
+
+export async function subnetNameTaken(net: NetworkConfig, name: string) {
+  const c = publicClient(net.l1);
+  const { contract } = net.builders!;
+  const id = await c.readContract({ address: contract, abi: buildersAbi, functionName: 'getSubnetId', args: [name] });
+  const [, admin] = await c.readContract({ address: contract, abi: buildersAbi, functionName: 'subnets', args: [id] });
+  return admin !== zeroAddress;
+}
+
+/** A pool on Base and, in the same transaction, its own Builders Subnet. */
+export async function createBuilderPool(
+  net: NetworkConfig,
+  partner: Address,
+  factory: Address,
+  cfg: PoolConfig,
+  budget: bigint,
+  subnetName: string,
+  metadata: SubnetMetadata,
+) {
+  const { receipt } = await write(net.l1, partner, factory, A.BuilderPoolFactory.abi as Abi, 'createBuilderPool', [cfg, budget, subnetName, metadata]);
+  const [ev] = parseEventLogs({ abi: A.PoolFactory.abi, logs: receipt.logs, eventName: 'PoolCreated' });
+  if (!ev) throw new Error('PoolCreated event not found');
+  return { vault: ev.args.vault, morReceiver: ev.args.morReceiver };
+}
+
+export type SubnetStatus = { id: Hash; name: string; pending: bigint; deposited: bigint };
+
+export async function subnetStatus(net: NetworkConfig, vault: Address): Promise<SubnetStatus> {
+  const c = publicClient(net.l1);
+  const v = { address: vault, abi: A.BuilderVault.abi } as const;
+  const [id, pending] = await Promise.all([
+    c.readContract({ ...v, functionName: 'subnetId' }),
+    c.readContract({ ...v, functionName: 'pendingSubnetMor' }),
+  ]);
+  const b = { address: net.builders!.contract, abi: buildersAbi } as const;
+  const [[name], [, deposited]] = await Promise.all([
+    c.readContract({ ...b, functionName: 'subnets', args: [id] }),
+    c.readContract({ ...b, functionName: 'subnetsData', args: [id] }),
+  ]);
+  return { id, name, pending, deposited };
+}
+
+export const claimSubnetMor = (net: NetworkConfig, me: Address, vault: Address) =>
+  write(net.l1, me, vault, A.BuilderVault.abi as Abi, 'claimSubnetMor', []);
 
 export async function splitterDeployed(net: NetworkConfig, morReceiver: Address) {
   const code = await publicClient(net.l2).getCode({ address: morReceiver });

@@ -7,7 +7,9 @@ import type { Abi, Address } from 'viem';
 import * as A from '@/contracts/artifacts';
 import { AdminGate } from '@/components/AdminGate';
 import { useNetwork } from '@/components/Providers';
-import { explorerAddress } from '@/config/networks';
+import { baseNet, poolNet, explorerAddress } from '@/config/networks';
+import { BaseBadge } from '@/components/BaseBadge';
+import { BridgeNote } from '@/components/BridgeNote';
 import { contractsFor, listPools, type PoolSummary } from '@/lib/partner';
 import { role } from '@/lib/deployPlan';
 import { errorText, publicClient, write } from '@/lib/tx';
@@ -25,7 +27,7 @@ function AdminPools() {
   const { address } = useAccount();
   const { net } = useNetwork();
   const { factory } = contractsFor(net);
-  const [pools, setPools] = useState<PoolSummary[]>();
+  const [pools, setPools] = useState<(PoolSummary & { onBase: boolean })[]>();
   const [canFeature, setCanFeature] = useState<boolean>();
   const [busy, setBusy] = useState<Address>();
   const [error, setError] = useState<string>();
@@ -34,7 +36,15 @@ function AdminPools() {
     if (!factory || !address) return;
     try {
       const [list, hasRole] = await Promise.all([
-        listPools(net, factory),
+        (async () => {
+          const base = baseNet(net);
+          const baseFactory = base && contractsFor(base).factory;
+          const [main, onBase] = await Promise.all([
+            listPools(net, factory),
+            base && baseFactory ? listPools(base, baseFactory).catch(() => []) : [],
+          ]);
+          return [...main.map((p) => ({ ...p, onBase: false })), ...onBase.map((p) => ({ ...p, onBase: true }))];
+        })(),
         publicClient(net.l1).readContract({
           address: factory,
           abi: A.PoolFactory.abi,
@@ -52,12 +62,13 @@ function AdminPools() {
     load();
   }, [load]);
 
-  const toggle = async (p: PoolSummary) => {
+  const toggle = async (p: PoolSummary & { onBase: boolean }) => {
     if (!factory || !address) return;
     setBusy(p.vault);
     setError(undefined);
     try {
-      await write(net.l1, address, factory, A.PoolFactory.abi as Abi, 'setFeatured', [p.vault, !p.featured]);
+      const here = poolNet(net, p.onBase);
+      await write(here.l1, address, contractsFor(here).factory!, A.PoolFactory.abi as Abi, 'setFeatured', [p.vault, !p.featured]);
       await load();
     } catch (e) {
       setError(errorText(e));
@@ -91,7 +102,7 @@ function AdminPools() {
           <div key={p.vault} className="card flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="font-medium text-white">
-                {p.rewardSymbol} pool
+                {p.rewardSymbol} pool {p.onBase && <BaseBadge />}
                 {p.featured ? (
                   <span className="ml-2 rounded bg-mor/15 px-2 py-0.5 text-xs text-mor">featured</span>
                 ) : (
@@ -99,7 +110,7 @@ function AdminPools() {
                 )}
               </div>
               <div className="mono text-slate-500">
-                <a className="hover:underline" href={explorerAddress(net.l1, p.vault)} target="_blank" rel="noreferrer">
+                <a className="hover:underline" href={explorerAddress(poolNet(net, p.onBase).l1, p.vault)} target="_blank" rel="noreferrer">
                   {p.vault}
                 </a>
               </div>
@@ -107,6 +118,7 @@ function AdminPools() {
                 Partner {short(p.partner)} · reward token {short(p.rewardToken)} · capacity {fmt(p.available, p.rewardDecimals)} {p.rewardSymbol}{' '}
                 · {p.positions.toString()} positions · deposits {fmtDate(p.depositStart)} → {fmtDate(p.depositEnd)}
               </div>
+              <BridgeNote token={p.rewardToken} onBase={p.onBase} className="text-xs" />
               <div className={`text-xs ${p.splitterLive ? 'text-mor' : 'text-red-400'}`}>
                 {p.splitterLive ? '✓ MOR splitter live' : '✗ MOR splitter not deployed: MOR would go to an empty address'}
               </div>

@@ -1,7 +1,7 @@
 {
   "network": "testnet",
   "deployer": "0x1ADe0588fC195d7809Ef334919023e3C2E6570C5",
-  "updatedAt": "2026-11-01T08:59:41.347Z",
+  "updatedAt": "2026-11-03T00:00:45.199Z",
   "ethereum": {
     "chainId": 11155111,
     "adapter": "0x9Bf3587a5C1aB65B45ab8430425fae37516Ae389",
@@ -9,13 +9,35 @@
     "capitalAccountImpl": "0xf1dECF2571D97C91f1F9Cd4a49b16143b9661c8D",
     "poolVaultImpl": "0xC338FA58E1dFA4f4e0E6e4C5368A6dA95E19D455",
     "poolFactory": "0x88db851dc0d3dc736d60792ba9a80757cd6874a4",
-    "otcMarket": "0x6bfffc0d72f5dbb52ca2a965060f9f22921b7df6"
+    "otcMarket": "0x6bfffc0d72f5dbb52ca2a965060f9f22921b7df6",
+    "ethBridgeRegistry": "0x58e59bf29bcac4b38354e1d0a084f878fd44145c"
   },
   "arbitrum": {
     "chainId": 421614,
     "arbFeeConfig": "0x33840f27b290c1fb966ae1be01b3f4bc2648880a",
     "morSplitterImpl": "0x1b1F43282CE83a7F855a2f913ab6E4D88D858068",
     "splitterDeployer": "0x0B50C474Adb8c7Dd8942B1B7c71a98725503Bba8"
+  },
+  "base": {
+    "chainId": 84532,
+    "simMor": "0x33840f27b290c1fb966ae1be01b3f4bc2648880a",
+    "simLib": "0x1b1f43282ce83a7f855a2f913ab6e4d88d858068",
+    "simRewardPoolImpl": "0x0b50c474adb8c7dd8942b1b7c71a98725503bba8",
+    "simFeeConfigImpl": "0x26a0652bf00d307547738f40e487ae4fc84622a2",
+    "simTreasuryImpl": "0x23e13823d6ed83730cd23d763bda90059d39e57a",
+    "simBuildersImpl": "0x0180eda69f953646bd483e2681aeccae77921f50",
+    "simSetup": "0x3e403f6b3cc575d0189f619eefb252eb52135115",
+    "simBuilders": "0xC8D04c76A810D0097042D7356E5794F3957a0873",
+    "simTreasury": "0x35e2F0Ec03775D2255B515B99C1193744EbE1D7b",
+    "baseFeeConfig": "0x70e1bd76ee416e132b94d8e5a45d0df138d9637b",
+    "baseSplitterImpl": "0x454dfe62a238bf1c26a5027a404d4400cdadb694",
+    "baseSplitterDeployer": "0xf98c1527d2c8d20a5a993a621bb3e12f69cbaa65",
+    "baseAdapter": "0x09db984908f85d55d7466b6c6ac210715eef006e",
+    "baseExitAdapter": "0xb69394de1205fd8a5dceb3cc7483b21827d64d06",
+    "baseAccountImpl": "0x0ac6e426b47098a6a9f28258fe7ca13b256c67b3",
+    "baseVaultImpl": "0x08e7c1af3c76e4ffc04f2bdd2e8a3607d204ef5c",
+    "baseFactory": "0xdd67cfb8b3a82c90792a3beb46cebc9c1a2ac7b7",
+    "bridgeRegistry": "0xe99fbac12f72f49ec102014f5bccab463f4222c6"
   },
   "config": {
     "feeBps": 1000,

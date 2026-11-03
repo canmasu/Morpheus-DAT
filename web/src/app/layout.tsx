@@ -3,10 +3,11 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import { TxToasts } from '@/components/TxToasts';
+import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'Morpheus DAT',
-  description: 'Stake USDC, USDT or stETH. Get your full stake back at unlock. Receive Partner Tokens.',
+  description: 'Farm your stETH, stablecoins and MOR to earn OG Tokens.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -16,9 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Header />
           <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
-          <footer className="mx-auto max-w-6xl px-4 pb-10 pt-6 text-xs text-slate-500">
-            Morpheus DAT — an independent platform built on Morpheus Capital.
-          </footer>
+          <Footer />
           <TxToasts />
         </Providers>
       </body>

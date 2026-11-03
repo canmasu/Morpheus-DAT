@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import type { Address } from 'viem';
-import { deploy, errorText, write } from '@/lib/tx';
+import { sepolia } from 'viem/chains';
+import { deploy, errorText, publicClient, write } from '@/lib/tx';
 import { keccak256 } from 'viem';
 import * as Artifacts from '@/contracts/artifacts';
 
 /** Fingerprint of the contract code this page deploys, to check the browser is running the latest build. */
 const BUILD = keccak256(
-  (Artifacts.PoolVault.bytecode + Artifacts.CapitalAccount.bytecode.slice(2) + Artifacts.PoolFactory.bytecode.slice(2)) as `0x${string}`,
+  (Artifacts.PoolVault.bytecode + Artifacts.CapitalAccount.bytecode.slice(2) + Artifacts.PoolFactory.bytecode.slice(2) + Artifacts.BuilderVault.bytecode.slice(2) + Artifacts.BuilderPoolFactory.bytecode.slice(2) + Artifacts.BuildersAdapter.bytecode.slice(2)) as `0x${string}`,
 ).slice(2, 10);
 import { NETWORKS, explorerAddress, explorerTx, type NetworkName } from '@/config/networks';
 import { useNetwork } from '@/components/Providers';
@@ -28,6 +29,9 @@ import {
 } from '@/lib/deployPlan';
 import { download, load, remove, save } from '@/lib/storage';
 import { short } from '@/lib/format';
+
+/** Base's own L1StandardBridge on Sepolia. ETH sent here arrives at the sender's address on Base Sepolia. */
+const BASE_SEPOLIA_BRIDGE = '0xfd0Bf71F60660E2f608ed56e1659C450eB113120';
 
 const storageKey = (n: NetworkName) => `dat-deploy-${n}`;
 
@@ -94,7 +98,7 @@ function Deploy() {
 
   const ctxFor = useCallback(
     (s: DeployState, label?: string): Ctx => {
-      const chainOf = (layer: Layer) => (layer === 'l1' ? net.l1 : net.l2);
+      const chainOf = (layer: Layer) => (layer === 'l1' ? net.l1 : layer === 'l2' ? net.l2 : net.builders!.chain);
       const account = address as Address;
       return {
         net,
@@ -105,6 +109,7 @@ function Deploy() {
         write: async (layer, target, abi, functionName, args) => ({
           hash: (await write(chainOf(layer), account, target, abi, functionName, args)).hash,
         }),
+        read: (layer, target, abi, functionName, args) => publicClient(chainOf(layer)).readContract({ address: target, abi, functionName, args }),
       };
     },
     [address, net],
@@ -167,6 +172,26 @@ function Deploy() {
           ))}
         </div>
       </div>
+
+      {net.name === 'testnet' && (
+        <section className="card space-y-2 text-sm">
+          <h2 className="font-medium text-white">Need gas on Base Sepolia?</h2>
+          <p className="text-slate-400">
+            Bridge it from Sepolia: on the <span className="text-white">Sepolia</span> network, send 0.2 ETH from your wallet to the Base Sepolia
+            bridge below. It reaches the same address on Base Sepolia, usually within a few minutes.
+          </p>
+          <p className="flex flex-wrap items-center gap-3">
+            <span className="mono break-all text-slate-200">{BASE_SEPOLIA_BRIDGE}</span>
+            <button className="text-xs text-mor hover:underline" onClick={() => navigator.clipboard.writeText(BASE_SEPOLIA_BRIDGE).catch(() => {})}>
+              Copy
+            </button>
+            <a className="text-xs text-mor hover:underline" href={explorerAddress(sepolia, BASE_SEPOLIA_BRIDGE)} target="_blank" rel="noreferrer">
+              View on explorer ↗
+            </a>
+          </p>
+          <p className="text-xs text-amber-300">Check your wallet shows Sepolia before sending. On Ethereum mainnet this would spend real ETH.</p>
+        </section>
+      )}
 
       <section className="card space-y-4">
         <h2 className="font-medium text-white">1 · Configuration</h2>
@@ -233,7 +258,7 @@ function Deploy() {
             <ol className="divide-y divide-ink-line rounded-lg border border-ink-line">
               {STEPS.filter((s) => s.group === g).map((s) => {
                 const r = state.results[s.id];
-                const chain = s.layer === 'l1' ? net.l1 : net.l2;
+                const chain = s.layer === 'l1' ? net.l1 : s.layer === 'l2' ? net.l2 : (net.builders?.chain ?? net.l2);
                 const status = r?.skipped ? 'skipped' : r ? 'done' : running === s.id ? 'running' : nextStep?.id === s.id ? 'next' : 'pending';
                 return (
                   <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">

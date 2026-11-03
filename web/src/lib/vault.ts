@@ -1,6 +1,6 @@
 import { type Abi, type Address, erc20Abi, parseUnits } from 'viem';
 import * as A from '@/contracts/artifacts';
-import type { NetworkConfig, StakeAsset } from '@/config/networks';
+import { baseNet, type NetworkConfig, type StakeAsset } from '@/config/networks';
 import { ensureAllowance, publicClient, write } from './tx';
 import { contractsFor } from './partner';
 
@@ -137,6 +137,15 @@ export async function allPools(net: NetworkConfig): Promise<{ vault: Address; fe
   return vaults.map((vault, i) => ({ vault, featured: featured[i] })).reverse();
 }
 
+export type PoolRef = { vault: Address; featured: boolean; onBase: boolean };
+
+/** Every pool of a network: Ethereum first, then the MOR pools on Base. An unreachable Base RPC hides only those. */
+export async function allPoolsEverywhere(net: NetworkConfig): Promise<PoolRef[]> {
+  const base = baseNet(net);
+  const [main, onBase] = await Promise.all([allPools(net), base ? allPools(base).catch(() => []) : []]);
+  return [...main.map((p) => ({ ...p, onBase: false })), ...onBase.map((p) => ({ ...p, onBase: true }))];
+}
+
 export async function stake(
   net: NetworkConfig,
   me: Address,
@@ -184,7 +193,15 @@ export type MyPosition = {
   status: number; // 0 Active, 1 ExitPending, 2 Withdrawn
   account: Address;
   emergency: boolean;
+  onBase: boolean;
 };
+
+/** Positions on Ethereum and on Base. An unreachable Base RPC hides only the Base ones. */
+export async function myPositionsEverywhere(net: NetworkConfig, me: Address): Promise<MyPosition[]> {
+  const base = baseNet(net);
+  const [main, onBase] = await Promise.all([myPositions(net, me), base ? myPositions(base, me).catch(() => []) : []]);
+  return [...main, ...onBase];
+}
 
 export async function myPositions(net: NetworkConfig, me: Address): Promise<MyPosition[]> {
   const c = publicClient(net.l1);
@@ -222,6 +239,7 @@ export async function myPositions(net: NetworkConfig, me: Address): Promise<MyPo
         status: Number(p.status),
         account: p.account,
         emergency: info[2],
+        onBase: !!net.isBase,
       });
     }
   }
@@ -231,7 +249,7 @@ export async function myPositions(net: NetworkConfig, me: Address): Promise<MyPo
 export const vaultWrite = (net: NetworkConfig, me: Address, vault: Address, fn: string, args: unknown[]) =>
   write(net.l1, me, vault, A.PoolVault.abi as Abi, fn, args);
 
-/** Readable amount for reward examples: the Omega (range tier) minimum if set, else the rate unit. */
+/** Readable amount for reward examples: the Whale (range tier) minimum if set, else the rate unit. */
 export function refAmount(s: Sleeve) {
   const range = s.tiers.find((t) => t.kind === 0 && t.minPerWallet > 0n);
   return range ? range.minPerWallet : s.unit;

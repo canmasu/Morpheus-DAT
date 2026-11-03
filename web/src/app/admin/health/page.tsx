@@ -6,8 +6,8 @@ import { useAccount } from 'wagmi';
 import { AdminGate } from '@/components/AdminGate';
 import { useNetwork } from '@/components/Providers';
 import { TokenIcon } from '@/components/TokenIcon';
-import { explorerAddress } from '@/config/networks';
-import { claimReferralMor, readStatus, type MorpheusStatus } from '@/lib/status';
+import { baseNet, explorerAddress } from '@/config/networks';
+import { claimReferralMor, readBuildersStatus, readStatus, type BuildersStatus, type MorpheusStatus } from '@/lib/status';
 import { errorText } from '@/lib/tx';
 import { fmt, short } from '@/lib/format';
 
@@ -25,10 +25,74 @@ export default function HealthPage() {
   );
 }
 
+function BuildersSection({
+  chain,
+  status: b,
+  error,
+  explorer,
+}: {
+  chain: string;
+  status?: BuildersStatus;
+  error?: string;
+  explorer: (address: string) => string;
+}) {
+  const pct = (x: number) => `${+(x * 100).toFixed(2)}%`;
+  return (
+    <section className="rounded-2xl border border-ink-line bg-ink-soft p-5 text-sm">
+      <h2 className="mb-4 font-medium text-white">Morpheus Builders · {chain} (MOR pools)</h2>
+      {error && <p className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
+      {!b && !error && <p className="text-slate-500">Reading…</p>}
+      {b && (
+        <>
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {b.dat ? (
+              <>
+                <Check ok={b.dat.healthy} title="New MOR stakes" good="Builders matches the recorded baseline" bad="Halted: Builders changed" />
+                <Check
+                  ok={!b.dat.depositsPaused && !b.dat.allPaused}
+                  title="DAT pause (Base)"
+                  good="Not paused"
+                  bad={b.dat.allPaused ? 'Everything paused (withdrawals still open)' : 'Deposits paused'}
+                />
+                <Check ok={!b.dat.exitOnly} title="Adapter (Base)" good="Normal adapter in use" bad="Exit-only adapter in use" />
+              </>
+            ) : (
+              <p className="text-xs text-amber-300 sm:col-span-2 lg:col-span-4">DAT is not deployed on {chain} yet: run the Base steps on the deploy page.</p>
+            )}
+          </div>
+          <dl className="space-y-1.5">
+            <Row k="BuildersV4">
+              <a className="mono hover:underline" href={explorer(b.contract)} target="_blank" rel="noreferrer">
+                {short(b.contract)} ↗
+              </a>
+            </Row>
+            <Row k="Version">{b.version.toString()}</Row>
+            <Row k="Minimum withdraw lock">{dur(b.withdrawLock)}</Row>
+            <Row k="Subnet creation fee">{fmt(b.creationFee, 18, 4)} MOR</Row>
+            <Row k="Morpheus fee on subnet claims">{b.claimFee === undefined ? 'cannot read' : pct(b.claimFee)}</Row>
+            <Row k={`Emission share of ${chain} subnets`}>{pct(b.networkShare)}</Row>
+            <Row k="MOR staked in all subnets">{fmt(b.totalStaked, 18, 0)} MOR</Row>
+            <Row k="MOR to subnets per day">{fmt(b.morPerDay, 18, 1)} MOR</Row>
+            <Row k="MOR a year per MOR staked">{pct(b.yearlyRate)} (paid to subnets, falls as more MOR is staked)</Row>
+            {b.dat && <Row k="DAT MOR pools">{b.dat.pools.toString()}</Row>}
+          </dl>
+          <p className="mt-3 text-xs text-slate-500">
+            &quot;Changed&quot; blocks new MOR stakes until the multisig fork-tests the change and calls recordBaseline on the BuildersAdapter. Exits
+            keep working.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 function Health() {
   const { net } = useNetwork();
   const { address } = useAccount();
   const [st, setSt] = useState<MorpheusStatus>();
+  const base = baseNet(net);
+  const [builders, setBuilders] = useState<BuildersStatus>();
+  const [buildersError, setBuildersError] = useState<string>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState<string>();
   const [note, setNote] = useState<string>();
@@ -36,7 +100,10 @@ function Health() {
   const load = useCallback(() => {
     setSt(undefined);
     readStatus(net).then(setSt, (e) => setError(errorText(e)));
-  }, [net]);
+    setBuilders(undefined);
+    setBuildersError(undefined);
+    if (base) readBuildersStatus(base).then(setBuilders, (e) => setBuildersError(errorText(e)));
+  }, [net, base]);
   useEffect(load, [load]);
 
   const isReferral = !!st?.dat && !!address && st.dat.referral.toLowerCase() === address.toLowerCase();
@@ -49,7 +116,7 @@ function Health() {
             ← Admin
           </Link>
           <h1 className="mt-2 text-2xl font-semibold text-white">Morpheus status</h1>
-          <p className="mt-1 text-sm text-slate-400">{net.label} · live reads from Morpheus Capital and the DAT factory</p>
+          <p className="mt-1 text-sm text-slate-400">{net.label} · live reads from Morpheus Capital, Morpheus Builders and the DAT factories</p>
         </div>
         <button className="btn-ghost" onClick={load}>
           Refresh
@@ -132,6 +199,8 @@ function Health() {
               working.
             </p>
           </section>
+
+          {base && <BuildersSection chain={`${base.l1.name}${base.builders?.simulated ? ', simulated' : ''}`} status={builders} error={buildersError} explorer={(a) => explorerAddress(base.l1, a)} />}
 
           {/* LayerZero */}
           <section className="rounded-2xl border border-ink-line bg-ink-soft p-5 text-sm">

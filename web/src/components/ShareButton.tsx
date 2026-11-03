@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 /** Share a pool: copy, X, Telegram, or the device's own share sheet. */
 export function ShareButton({ text, url }: { text: string; url: string }) {
@@ -8,6 +9,7 @@ export function ShareButton({ text, url }: { text: string; url: string }) {
   const [copied, setCopied] = useState(false);
   const [canNative, setCanNative] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => setCanNative(typeof navigator !== 'undefined' && typeof navigator.share === 'function'), []);
   useEffect(() => {
@@ -35,16 +37,16 @@ export function ShareButton({ text, url }: { text: string; url: string }) {
           <path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" />
           <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
         </svg>
-        Share
+        {t('share.button')}
       </button>
       {open && (
         <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] space-y-3 rounded-2xl border border-ink-line bg-ink-soft p-4 shadow-xl">
-          <div className="text-xs text-slate-500">Share this pool</div>
+          <div className="text-xs text-slate-500">{t('share.title')}</div>
           <p className="whitespace-pre-line rounded-lg bg-ink p-3 text-sm text-slate-200">{text}</p>
           <p className="mono break-all text-slate-500">{url}</p>
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-primary" onClick={copy}>
-              {copied ? 'Copied ✓' : 'Copy text + link'}
+              {copied ? t('share.copied') : t('share.copy')}
             </button>
             <a
               className="btn-ghost"
@@ -52,7 +54,7 @@ export function ShareButton({ text, url }: { text: string; url: string }) {
               rel="noreferrer"
               href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`}
             >
-              Post on X
+              {t('share.x')}
             </a>
             <a
               className="btn-ghost"
@@ -64,7 +66,7 @@ export function ShareButton({ text, url }: { text: string; url: string }) {
             </a>
             {canNative && (
               <button className="btn-ghost" onClick={() => navigator.share({ text, url }).catch(() => {})}>
-                More…
+                {t('share.more')}
               </button>
             )}
           </div>

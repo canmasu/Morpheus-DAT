@@ -113,7 +113,16 @@ contract PoolFactory is IPoolFactory, IPoolTypes, AccessControl, ReentrancyGuard
     // ---------------------------------------------------------------- Partners
 
     /// @notice Permissionless. The caller becomes the pool's Partner and funds `initialBudget` reward tokens.
-    function createPool(PoolConfig calldata cfg, uint256 initialBudget) external nonReentrant returns (address vault) {
+    function createPool(PoolConfig calldata cfg, uint256 initialBudget)
+        external
+        virtual
+        nonReentrant
+        returns (address vault)
+    {
+        return _createPool(cfg, initialBudget);
+    }
+
+    function _createPool(PoolConfig calldata cfg, uint256 initialBudget) internal returns (address vault) {
         if (cfg.depositStart < block.timestamp || cfg.depositEnd <= cfg.depositStart || cfg.epochLength == 0) {
             revert PoolVault.InvalidConfig();
         }

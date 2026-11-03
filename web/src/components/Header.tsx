@@ -9,19 +9,23 @@ import { useNetwork } from './Providers';
 import { isAdmin } from '@/config/admin';
 import { NETWORKS, type NetworkName } from '@/config/networks';
 import { isLocalHost } from '@/lib/sandbox';
+import { LanguagePicker } from './LanguagePicker';
+import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/messages/en';
 
-const NAV = [
-  { href: '/', label: 'Home' },
-  { href: '/pools/', label: 'Pools' },
-  { href: '/dashboard/', label: 'Dashboard' },
-  { href: '/partner/', label: 'Partners' },
-  { href: '/contracts/', label: 'Contracts' },
+const NAV: { href: string; label: MessageKey }[] = [
+  { href: '/', label: 'nav.home' },
+  { href: '/pools/', label: 'nav.pools' },
+  { href: '/dashboard/', label: 'nav.dashboard' },
+  { href: '/partner/', label: 'nav.partners' },
+  { href: '/contracts/', label: 'nav.contracts' },
 ];
 
 export function Header() {
   const path = usePathname();
   const { address } = useAccount();
   const { net, setNetwork } = useNetwork();
+  const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const admin = mounted && isAdmin(address);
@@ -40,12 +44,16 @@ export function Header() {
     <>
       {net.name === 'local' && (
         <div className="bg-sky-500/15 py-1 text-center text-xs font-medium text-sky-300">
-          LOCAL SANDBOX · mainnet fork on this computer · <Link className="underline" href="/sandbox/">faucet and time skip</Link>
+          {t('banner.local')}{' '}
+          <Link className="underline" href="/sandbox/">
+            {t('banner.localLink')}
+          </Link>
         </div>
       )}
       {net.name === 'testnet' && (
         <div className="bg-amber-500/15 py-1 text-center text-xs font-medium text-amber-300">
-          TESTNET · {net.l1.name} + {net.l2.name} · tokens have no value
+          {t('banner.testnet', { l1: net.l1.name, l2: net.l2.name })}
+          {net.builders?.simulated && ` · ${t('banner.simulated')}`}
         </div>
       )}
       <header className="border-b border-ink-line">
@@ -55,9 +63,9 @@ export function Header() {
               Morpheus <span className="text-mor">DAT</span>
             </Link>
             <nav className="hidden gap-6 sm:flex">
-              {NAV.map((n) => link(n.href, n.label))}
-              {mounted && net.name === 'local' && link('/sandbox/', 'Sandbox')}
-              {admin && link('/admin/', 'Admin')}
+              {NAV.map((n) => link(n.href, t(n.label)))}
+              {mounted && net.name === 'local' && link('/sandbox/', t('nav.sandbox'))}
+              {admin && link('/admin/', t('nav.admin'))}
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -77,6 +85,7 @@ export function Header() {
                   ))}
               </select>
             )}
+            {mounted && <LanguagePicker />}
             <ConnectButton />
           </div>
         </div>
